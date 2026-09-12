@@ -4,7 +4,8 @@
 # Build Test App
 
 Make sure you have
-- Cmake >3.24
+- [Cmake >3.30](https://cmake.org/download/)
+- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 
 run 
 ``` sh
@@ -15,7 +16,7 @@ cmake --build build
 # Build Documentation
 
 Make sure you have
-- CMake >3.24
+- [Cmake >3.30](https://cmake.org/download/)
 - [doxygen](https://www.doxygen.nl/manual/install.html)
 - Graphviz (optional)
 

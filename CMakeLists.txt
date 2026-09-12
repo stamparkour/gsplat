@@ -1,27 +1,45 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.30)
 # set the project name
 project(gsplat VERSION 0.1.0 LANGUAGES C CXX)
 
 
 #options
-option(gsplat_BUILD_APP OFF)
+option(gsplat_BUILD_APP ON)
 option(gsplat_BUILD_DOXYGEN OFF)
 
 #config
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin/Debug")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release")
+set(OUTPUT_DIRECTORY "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # set C++ version
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
 # include subdirectories
 add_subdirectory(lib/core)
+add_subdirectory(lib/vulkan)
+add_subdirectory(lib/shaders)
+add_subdirectory(lib/train)
+add_subdirectory(lib/cli)
+add_subdirectory(lib/gui)
 
 add_library(gsplat_gsplat INTERFACE)
 add_library(gsplat::gsplat ALIAS gsplat_gsplat)
-target_link_libraries(gsplat_gsplat INTERFACE gsplat::core)
+target_link_libraries(gsplat_gsplat INTERFACE 
+	gsplat::core
+	gsplat::cli
+	gsplat::gui
+	gsplat::shaders
+	gsplat::vulkan
+	gsplat::train
+)
 
 if(gsplat_BUILD_APP)
+	
     #project warnings
     if (MSVC)
         add_compile_options(/W4 /WX)
