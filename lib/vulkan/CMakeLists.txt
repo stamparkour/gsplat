@@ -6,6 +6,11 @@ set(PROJECT_SOURCES
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
+	"include/gsplat/vulkan/configure.h"
+	"include/gsplat/vulkan/vulkan_runtime.h"
+	"include/gsplat/vulkan/buffer.h"
+	"include/gsplat/vulkan/compute_shader.h"
+	"include/gsplat/vulkan/image.h"
 )
 
 # add the library
@@ -20,6 +25,9 @@ target_include_directories(gsplat_vulkan
 
 # dependencies
 target_link_libraries(gsplat_vulkan PUBLIC gsplat::core)
+
+include(glm)
+target_link_libraries(gsplat_vulkan PUBLIC glm::glm)
 
 include(vulkan)
 target_link_libraries(gsplat_vulkan PUBLIC Vulkan::Vulkan)

@@ -6,6 +6,7 @@ set(PROJECT_SOURCES
 )
 set(PROJECT_HEADERS
 	"include/gsplat/gui.h"
+	"include/gsplat/gui/entry.h"
 )
 
 # add the library
@@ -23,3 +24,9 @@ target_link_libraries(gsplat_cli PUBLIC gsplat::core gsplat::vulkan)
 
 include(glfw)
 target_link_libraries(gsplat_gui PUBLIC glfw)
+
+include(vulkan)
+target_link_libraries(gsplat_gui PUBLIC Vulkan::Vulkan)
+
+include(imgui)
+target_link_libraries(gsplat_gui PUBLIC imgui)

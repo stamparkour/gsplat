@@ -19,4 +19,4 @@ target_include_directories(gsplat_train
 )
 
 # dependencies
-target_link_libraries(gsplat_train PUBLIC gsplat::core gsplat::vulkan)
+target_link_libraries(gsplat_train PUBLIC gsplat::core gsplat::vulkan gsplat::data)

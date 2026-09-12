@@ -4,9 +4,9 @@ FetchContent_GetProperties(glfw)
 if(NOT glfw_POPULATED)
 	message(FATAL_ERROR "imgui requires glfw")
 endif()
-FetchContent_GetProperties(glew)
-if(NOT glew_POPULATED)
-	message(FATAL_ERROR "imgui requires glew")
+FetchContent_GetProperties(vulkan)
+if(NOT Vulkan_POPULATED)
+	message(FATAL_ERROR "imgui requires vulkan")
 endif()
 
 FetchContent_Declare(
@@ -22,13 +22,13 @@ if(NOT imgui_POPULATED)
 	file(GLOB IMGUI_BASE_SOURCES "${imgui_SOURCE_DIR}/*.cpp")
 	set(IMGUI_BACKEND_SOURCES 
 		"${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
-		"${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
+		"${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp"
 	)
 	add_library(imgui STATIC ${IMGUI_BASE_SOURCES} ${IMGUI_BACKEND_SOURCES})
 	target_include_directories(imgui 
 		PUBLIC "${imgui_SOURCE_DIR}"
 	)
-	target_link_libraries(imgui PUBLIC glfw glew_s)
+	target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 endif()
 
 if(imgui_POPULATED)

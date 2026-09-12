@@ -5,6 +5,7 @@ set(PROJECT_SOURCES
 	"src/cli.cpp"
 )
 set(PROJECT_HEADERS
+	"include/gsplat/cli/entry.h"
 	"include/gsplat/cli.h"
 )
 
@@ -19,7 +20,7 @@ target_include_directories(gsplat_cli
 )
 
 # dependencies
-target_link_libraries(gsplat_cli PUBLIC gsplat::core)
+target_link_libraries(gsplat_cli PUBLIC gsplat::core gsplat::train)
 
 # include(boost)
 # target_link_libraries(gsplat_cli PUBLIC Boost::program_options)
