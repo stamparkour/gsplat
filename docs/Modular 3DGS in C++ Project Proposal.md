@@ -1,3 +1,5 @@
+# Modular 3DGS in C++ Project Proposal
+
 # Goal
 The goal is to create a modular 3DGS, Gaussian Splatting, to provide intuitive API for developing experimental workflows. Specific experiments include learning shadows and directional lighting. Further, we are designing this tool to be faster than the original Gaussian Splatting repository.
 

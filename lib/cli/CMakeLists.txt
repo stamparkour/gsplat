@@ -20,7 +20,7 @@ target_include_directories(gsplat_cli
 )
 
 # dependencies
-target_link_libraries(gsplat_cli PUBLIC gsplat::core gsplat::train)
+target_link_libraries(gsplat_cli PUBLIC gsplat::core gsplat::data gsplat::train)
 
 # include(boost)
 # target_link_libraries(gsplat_cli PUBLIC Boost::program_options)

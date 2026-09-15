@@ -1,3 +1,5 @@
+# Math
+
 The Gradient will be calculated per input image, per pixel.
 
 # Color

@@ -1,1 +1,7 @@
+message("importing gslangValidator...")
 find_package(Vulkan COMPONENTS glslangValidator)
+if(Vulkan_glslangValidator_FOUND)
+	message("gslangValidator found!")
+else()
+	message("failed to find gslangValidator")
+endif()

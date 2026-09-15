@@ -1,5 +1,10 @@
+message("importing Vulkan...")
 find_package(Vulkan)
-
+if(Vulkan_FOUND)
+endif()
 if(Vulkan_FOUND)
 	set(Vulkan_POPULATED ON)
+	message("Vulkan found!")
+else()
+	message("failed to find Vulkan")
 endif()

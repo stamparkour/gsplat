@@ -20,7 +20,7 @@ target_include_directories(gsplat_gui
 )
 
 # dependencies
-target_link_libraries(gsplat_cli PUBLIC gsplat::core gsplat::vulkan)
+target_link_libraries(gsplat_gui PUBLIC gsplat::core gsplat::data gsplat::vulkan)
 
 include(glfw)
 target_link_libraries(gsplat_gui PUBLIC glfw)

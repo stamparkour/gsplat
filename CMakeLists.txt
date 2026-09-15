@@ -5,7 +5,7 @@ project(gsplat VERSION 0.1.0 LANGUAGES C CXX)
 
 #options
 option(gsplat_BUILD_APP "" ON)
-option(gsplat_BUILD_DOXYGEN "" ON)
+option(gsplat_BUILD_DOXYGEN "" OFF)
 option(gsplat_SLANG_COMPILER_PATH "" OFF)
 
 #config
@@ -82,6 +82,6 @@ if(gsplat_BUILD_DOXYGEN)
         set(DOXYGEN_RECURSIVE YES)
         set(DOXYGEN_SOURCE_BROWSER YES)
 
-        doxygen_add_docs(stamp_docs ${MY_DOXYGEN_SOURCES} ALL)
+        doxygen_add_docs(gsplat_doc ${MY_DOXYGEN_SOURCES})
     endif()
 endif()
