@@ -3,10 +3,11 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/vulkan.cpp"
+	"src/vulkan_runtime.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
-	"include/gsplat/vulkan/configure.h"
+	"include/gsplat/vulkan/config.h"
 	"include/gsplat/vulkan/vulkan_runtime.h"
 	"include/gsplat/vulkan/buffer.h"
 	"include/gsplat/vulkan/compute_shader.h"

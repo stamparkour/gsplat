@@ -1,7 +1,8 @@
 #ifndef GSPLAT_VULKAN_IMAGE_H
 #define GSPLAT_VULKAN_IMAGE_H
 
-#include <gsplat/vulkan/configure.h>
+#include <gsplat/vulkan/config.h>
+#include<vulkan/vulkan.h>
 
 namespace gsplat::vulkan {
 	class image {
