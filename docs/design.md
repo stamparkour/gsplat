@@ -1,211 +1,146 @@
-# goal:
-- faster performance that original gaussian splatting lib.
-- modular design for easy modification
-- utilize Vulkan for rendering and training
+## Backend
+Vulkan, training pipeline, renderer, database
 
-questions
-- do we use AI during development?
+## Frontend
+CLI, GUI
 
+# Subsystems
+## Database
 
-components:
+functionality:
+- store gaussians in gpu.
+- store images in gpu.
+- generate gaussians from point cloud and images.
+- transfer gaussians to cpu
+
+Modular:
+- input data source - colmaps
+- output file - point cloud with gaussians. **research this**
+- what attributes to store - Should attributes be dynamic or static?
+
+Depends on:
 - vulkan
-- dataset
-- rendering
+- core
+
+Questions
+- Array-of-structs or structs-of-arrays?
+- utilize intense colmaps library or use external tool to generate text file format for colmaps data?
+- what image manipulation library to use?
+
+External Libraries:
+- OpenCV - image loading and manipulation
+- COLMAPS?
+
+Research:
+- output file type
+
+## Vulkan
+
+functionality
+- initialize vulkan context
+- invoke compute shader
+- store buffer of arbitrary arrays of data
+- store image
+- transfer data cpu to gpu
+- transfer data from gpu to cpu
+
+Depends on:
+- core
+
+External Libraries:
+- glfw
+- vulkan sdk
+
+Research:
+- storing data in Vulkan Buffers.
+- storing images in Vulkan.
+- should we design for multiple GPUs?
+
+## Training Pipeline
+
+Functionality:
+- project 3d gaussians to 2d gaussians
+- sort by depth
+- project 2d gaussians to 3d gaussians (applying gradient descent)
+- calculate gradient descent for $\Sigma'$ and $\mu'$, compute shader.
+- gradient descent for color
+- splitting gaussians
+- removing gaussians
+
+Modular:
+- color
+- splitting gaussians
+- removing gaussians
+- parameters for configuring per number of iteration  (batching, when to split/remove gaussians)
+
+Depends on:
+- vulkan
+- database
+- core
+
+Questions:
+- what should we make modular
+- Should we do multi-threading?
+
+Future:
+- optimize by  splitting gaussians into screen buckets
+
+## CLI/Traing frontend
+
+functionality:
+- call gradient descent
+- config files
+- load chosen input database
+- load checkpoints
+- choose export file type
+- verify testing set of images.
+
+Modular:
+- Database provides names and info of database type automatically for cli
+
+Depends on:
 - training
-- cli/gui
+- database
+- core
 
-# Dataset
-tool that takes in data and standardizes it.
+Questions:
+- should CLI manage and run GUI, or should there be a "training" and "viewing" app?
+- Should we design for python bindings?
+- should there be a GUI version of the CLI training app
 
-planned inputs:
-- Colmap
+External library:
+- Boost.Program_options
 
-output structure:
-- per image:
-	- camera pose
-	- point cloud 2d position
-- sparse/dense initializing cloud
-```cpp
+## GUI/Viewing results frontend
 
+functionality:
+- render image to vulkan image buffer, compute shader
+- load gaussian file
+- move camera around
+- go to preset locations determined by input images and provide Loss information at view.
+- load testing image set and compare.
+- render and export chosen perspectives as video/images.
+- Sort gaussians by depth
+- project 3d gaussians to 2d gaussians
+- calculate gaussian color based on perspective
 
-class image_point {
-	const vector2f& position() const;
-}
+Modular:
+- load chosen gaussian file type
 
-class image_point_map {
-public:
-	//iterator->first : point_token
-	//iterator->second : image_point
-	const_iterator find(point_token) const;
-	const_iterator begin() const;
-	const_iterator end() const;
-	const_iterator cbegin() const;
-	const_iterator cend() const;
-}
+Depends on:
+- database
+- vulkan
+- core
 
-class image {
-public:
-	image_token token() const;
-	const file& image_file() const;
-	const vulkan::texture2d& image_vulkan() const;
-	const matrix3f& camera_pose() const;
-	const image_point_map& point_map() const;
-};
+Question:
+- what should it look like?
+- should we develop graphics for general use or more complex use?
 
-class image_map {
-public:
-	//iterator->first : image_token
-	//iterator->second : image
-	const_iterator find(image_token) const;
-	const_iterator begin() const;
-	const_iterator end() const;
-	const_iterator cbegin() const;
-	const_iterator cend() const;
-};
-
-class point {
-public:
-	point_token token() const;
-	const vector3f& position() const;
-}
-
-class point_map {
-public:
-	//iterator->first : point_token
-	//iterator->second : point
-	const_iterator find(point_token) const;
-	const_iterator begin() const;
-	const_iterator end() const;
-	const_iterator cbegin() const;
-	const_iterator cend() const;
-};
-
-class dataset {
-public:
-	const image_map& images() const;
-	const point_map& points() const;
-}
-
-dataset colmap(const std::filesystem::path& colmap_dir);
-```
+External libraries:
+- DearImgui
 
 
 
 
 
-design requirements:
-- modular input design
-- modular extra data per image.
 
-extra info:
-- undistort image https://colmap.github.io/cli.html
-
-# Rendering
-
-takes in a set of 3d gaussians and camera pose, outputs 2d render.
-
-each 3d gaussians contains:
-- 3x3 covariance matrix.
-- 3d position
-- directional color information
-
-camera pose is:
-- camera space transformation
-- camera projection transformation
-
-
-
-requirements:
-- ability to run multiple instances of rendering
-
-```cpp
-struct gaussian_vulkan {
-	vector3f position;
-	matrix4f covariance;
-	/* color info */
-}
-
-void render_gaussians(
-	vulkan::render_buffer& out_buffer,
-	const vulkan::array1<gaussian_vulkan>& gaussians, 
-	const matrix4f& camera_projection, 
-	const matrix4f& camera_transform);
-```
-
-# Training
-
-iterates over each input image and refines gaussians.
-
-utilizes parts of renderer to train and back propagate.
-
-
-```cpp
-// sorts gaussians by depth after transforming with camera_transform
-void sort_gaussians(
-	vulkan::array1i& out_buffer,
-	const vulkan::array1<gaussian_vulkan>& gaussians, 
-	const matrix4f& camera_transform);
-
-struct gaussian2d_vulkan {
-	vector2f position;
-	matrix2f covariance;
-	/* color info */
-};
-
-// transforms 3d gaussians to 2d gaussians in out_buffer using sort_buffer as ordering
-void convert_2d_gaussians(
-	vulkan::array1<gaussian2d_vulkan>& out_buffer, 
-	const vulkan::array1i& sort_buffer, 
-	const vulkan::array1<gaussian_vulkan>& gaussians, 
-	const matrix4f& camera_transform,
-	const matrix4f& camera_projection);
-	
-
-// calculates gradient descent per 2d gaussian
-void gradient_gaussian(
-	vulkan::array1<gaussian2d_vulkan>& out_buffer, 
-	const vulkan::array1<gaussian2d_vulkan>& gaussians2d);
-
-// reverses the transformation and generates 3d gaussians for out_buffer
-void inverse_to_3d_gaussian(
-	vulkan::array1<gaussian_vulkan>& out_buffer
-	const vulkan::array1<gaussian2d_vulkan>& gradient,
-	const vulkan::array1i& sort_buffer, 
-	const matrix4f& camera_transform,
-	const matrix4f& camera_projection);
-
-// applyies gradient to gaussians_buffer
-void apply_gradient_gaussian(
-	vulkan::array1<gaussian_vulkan>& gaussians_buffer,
-	const vulkan::array1<gaussian_vulkan>& gradient);	
-	
-// adds and removes gaussians using parameters (cpu side)
-void modify_gaussian(
-	/* cpu side gausian list */ gaussians,
-	const vulkan::array1<gaussian_vulkan>& gradient);
-
-// need add two arrays
-// need multiply by coef
-
-```
-
-**ideas**
-the only paramters that can be affected per image are:
-- left-right-up-down relative to camera. forward and back both affect scaling nonlinearly and affect sorting non-continuously.
-- 2d covariance relative to camera. 2d covariance can easily be proven to be positive semidefinite (all eigenvalues are positive: det>0)
-
-if position gradient is above some threshold, split the gaussian.
-if the transparency or alpha value is too low, remove the gaussian.
-# GUI
-
-uses dear Im Gui
-
-takes output of renderer and places it into dear im gui stuff
-
-## CLI
-
-train model and ouput gaussians
-
-# Vulkan
-
-needs uniform buffer array, 1d array, 2d array(image), 3d array, render buffer, uniform matrix, compute shader
