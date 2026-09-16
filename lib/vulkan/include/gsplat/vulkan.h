@@ -4,6 +4,6 @@
 #include<gsplat/vulkan/buffer.h>
 #include<gsplat/vulkan/image.h>
 #include<gsplat/vulkan/compute_shader.h>
-#include<gsplat/vulkan/vulkan_runtime.h>
+#include<gsplat/vulkan/vulkan_context.h>
 
 #endif // GSPLAT_VULKAN_H
