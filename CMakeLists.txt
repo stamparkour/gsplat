@@ -5,6 +5,7 @@ project(gsplat VERSION 0.1.0 LANGUAGES C CXX)
 
 #options
 option(gsplat_BUILD_APP "" ON)
+option(gsplat_WARNING_AS_ERROR "" ON)
 option(gsplat_BUILD_DOXYGEN "" OFF)
 option(gsplat_SLANG_COMPILER_PATH "" OFF)
 
@@ -20,6 +21,18 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(gsplat_WARNING_AS_ERROR)
+	message("setting compiler options...")
+    #project warnings
+    if (MSVC)
+        set(CMAKE_MSVC_WARNING_LEVEL Level4)
+        add_compile_options(/WX)
+        #add_compile_options(/std:c++latest) 
+    else()
+        add_compile_options(-Wall -Wextra -pedantic -Werror)
+    endif()
+endif()
+
 
 # include subdirectories
 add_subdirectory(lib/core)
@@ -27,8 +40,8 @@ add_subdirectory(lib/data)
 add_subdirectory(lib/vulkan)
 add_subdirectory(lib/shaders)
 add_subdirectory(lib/train)
+add_subdirectory(lib/render)
 add_subdirectory(lib/cli)
-add_subdirectory(lib/gui)
 
 add_library(gsplat_gsplat INTERFACE)
 add_library(gsplat::gsplat ALIAS gsplat_gsplat)
@@ -36,7 +49,7 @@ target_link_libraries(gsplat_gsplat INTERFACE
 	gsplat::core
 	gsplat::data
 	gsplat::cli
-	gsplat::gui
+	gsplat::render
 	gsplat::shaders
 	gsplat::vulkan
 	gsplat::train
@@ -44,13 +57,6 @@ target_link_libraries(gsplat_gsplat INTERFACE
 
 if(gsplat_BUILD_APP)
 	message("adding apps")
-    #project warnings
-    if (MSVC)
-        add_compile_options(/W4 /WX)
-        add_compile_options(/std:c++latest) 
-    else()
-        add_compile_options(-Wall -Wextra -pedantic -Werror)
-    endif()
 
     #stack size
     #if (MSVC)

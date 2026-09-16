@@ -1,7 +1,7 @@
 # include <gsplat/render.h>
 
-using namespace gsplat::gui;
+using namespace gsplat::render;
 
-int gui_main(int argc, char** argv) {
+int render_main(int argc, char** argv) {
 	return 0;
 }

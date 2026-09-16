@@ -7,4 +7,8 @@
 #define GSPLAT_VERSION_TWEAK @gsplat_VERSION_TWEAK@
 #define GSPLAT_VERSION "@gsplat_VERSION@"
 
+#ifdef _DEBUG
+#define GSPLAT_DEBUG
+#endif
+
 #endif // GSPLAT_GSPLAT_CONFIG_H
