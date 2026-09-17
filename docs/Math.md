@@ -32,22 +32,4 @@ If you remove the 3rd column and row of $\Sigma'$, then the resulting matrix is 
 the 2d projected mean $\mu'$ is calculated the same as normal rendering techniques.
 
 ## Gradient Descent Parameters
-
-the parameters that can be altered are:
-- $\Sigma'$ - diagonal and the siymmetric parameter.
-- $\mu'$ - moving up-down and left-right.
-
-My reasoning is that it is computationally easy to verify a 2x2 covariance matrix, and the inverse operations are always present and easily computable.
-This choice is different than the original paper, in which the rotation quaternion and 3d position were altered.
-
-the 2d covariance gradient can be converted to 3d covariance gradient with
-$$
-\nabla \Sigma=W^\top J^{-1}\nabla\Sigma'(J^\top)^{-1}W^\top
-$$
-
-the gradient 3d mean can be calculated with 
-$$
-\nabla\mu=T^{-1}P^{-1}\lambda\hat{\mu'}
-$$
-where $T$ is the 4x4 camera transformation matrix, $P$ is the 4x4 perspective projection, and $\lambda$ is the parameter for the homogeneous vector $\hat{\mu'}$.
-
+ can validate a 2x2 matrix easily.
