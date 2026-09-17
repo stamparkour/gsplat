@@ -4,6 +4,7 @@ include(FetchContent)
 set(PROJECT_SOURCES
 	"src/vulkan.cpp"
 	"src/vulkan_context.cpp"
+	"src/physical_device.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
@@ -12,6 +13,8 @@ set(PROJECT_HEADERS
 	"include/gsplat/vulkan/buffer.h"
 	"include/gsplat/vulkan/compute_shader.h"
 	"include/gsplat/vulkan/image.h"
+	"include/gsplat/vulkan/vulkan_include.h"
+	"include/gsplat/vulkan/phyisical_device.h"
 )
 
 # add the library
@@ -32,3 +35,6 @@ target_link_libraries(gsplat_vulkan PUBLIC glm::glm)
 
 include(vulkan)
 target_link_libraries(gsplat_vulkan PUBLIC Vulkan::Vulkan)
+
+include(glfw)
+target_link_libraries(gsplat_vulkan PUBLIC glfw)
