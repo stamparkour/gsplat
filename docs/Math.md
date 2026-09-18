@@ -30,6 +30,3 @@ where $J$ is the Jacobian of the camera's projection matrix at point $\mu$, and 
 If you remove the 3rd column and row of $\Sigma'$, then the resulting matrix is a projected 2x2 covariance matrix.
 
 the 2d projected mean $\mu'$ is calculated the same as normal rendering techniques.
-
-## Gradient Descent Parameters
- can validate a 2x2 matrix easily.
