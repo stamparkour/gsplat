@@ -79,6 +79,7 @@ Depends on:
 - vulkan
 - database
 - core
+- renderer
 
 Questions:
 - what should we make modular
@@ -113,7 +114,7 @@ Questions:
 External library:
 - Boost.Program_options
 
-## GUI/Viewing results frontend
+## Renderer/Viewing results frontend
 
 functionality:
 - render image to vulkan image buffer, compute shader
