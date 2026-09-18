@@ -13,9 +13,9 @@ namespace gsplat::vulkan {
 		VkPhysicalDevice device_v;
 		VkInstance instance_ref_v;
 
+	public:
 		physical_device() = default;
 		physical_device(VkInstance a, VkPhysicalDevice b) : instance_ref_v(a), device_v(b) {}
-	public:
 		~physical_device();
 
 		VkPhysicalDevice device_handle() const;
@@ -63,7 +63,7 @@ namespace gsplat::vulkan {
 }
 
 template <typename ScoreFunc>
-inline physical_device_collection gsplat::vulkan::physical_device_collection::sort(ScoreFunc&& func) const {
+inline gsplat::vulkan::physical_device_collection gsplat::vulkan::physical_device_collection::sort(ScoreFunc&& func) const {
 	// score, index
 	std::priority_queue<std::pair<int,int>, std::vector<std::pair<int,int>>, std::greater<std::pair<int,int>>> queue{};
 
@@ -77,7 +77,7 @@ inline physical_device_collection gsplat::vulkan::physical_device_collection::so
 	physical_device_collection out{};
 	while(!queue.empty()) {
 		std::pair<int,int>& p = queue.top();
-		p.pop();
+		queue.pop();
 		out.devices_v.push_back(devices_v[p.second]);
 	}
 	return out;

@@ -3,7 +3,7 @@
 
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
-#include <command_queue.h>
+#include <gsplat/vulkan/command_queue.h>
 #include <vector>
 
 namespace gsplat::vulkan {
