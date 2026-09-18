@@ -14,7 +14,7 @@ VkInstance physical_device::instance_handle() const {
 VkPhysicalDeviceProperties physical_device::device_properties_vulkan() const {
     VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(device_v, &deviceProperties);
-	return deviceProperties
+	return deviceProperties;
 }
 VkPhysicalDeviceFeatures physical_device::device_features_vulkan() const {
 	VkPhysicalDeviceFeatures deviceFeatures;
@@ -26,6 +26,7 @@ std::vector<VkQueueFamilyProperties> gsplat::vulkan::physical_device::queue_fami
 	vkGetPhysicalDeviceQueueFamilyProperties(device_v, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
 	vkGetPhysicalDeviceQueueFamilyProperties(device_v, &queueFamilyCount, queueFamilies.data());
+	return queueFamilies;
 }
 
 physical_device_collection::size_type physical_device_collection::size() const {

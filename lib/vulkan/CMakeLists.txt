@@ -15,7 +15,7 @@ set(PROJECT_HEADERS
 	"include/gsplat/vulkan/image.h"
 	"include/gsplat/vulkan/vulkan_include.h"
 	"include/gsplat/vulkan/physical_device.h"
-	"include/gsplat/vulkan/command_buffer.h"
+	"include/gsplat/vulkan/command_queue.h"
 	"include/gsplat/vulkan/logical_device.h"
 )
 

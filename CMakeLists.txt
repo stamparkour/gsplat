@@ -52,6 +52,7 @@ target_link_libraries(gsplat_gsplat INTERFACE
 	gsplat::render
 	gsplat::shaders
 	gsplat::vulkan
+    gsplat::train
 )
 
 if(gsplat_BUILD_APP)
