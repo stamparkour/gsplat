@@ -3,7 +3,7 @@
 
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
-#include <gsplat/vulkan/phyisical_device.h>
+#include <gsplat/vulkan/physical_device.h>
 #include <vector>
 #include <string>
 
@@ -45,7 +45,7 @@ namespace gsplat::vulkan {
 	vulkan_extension_vector available_extensions();
 	vulkan_extension_vector glfw_extensions();
 
-	//  struct vulkan_context_creation {
+	//  struct vulkan_context_creation_settings {
 	// };
 
 	class vulkan_context {
@@ -63,10 +63,18 @@ namespace gsplat::vulkan {
 		vulkan_context& operator =(vulkan_context&&) = delete;
 
 		VkInstance instance_handle() const;
-		phyisical_device primary_device_handle() const;
+		physical_device_collection device_collection() const;
+		//see physical_device::sort
+		template<typename ScoreFunc>
+		physical_device_collection device_collection_sort(ScoreFunc&&) const;
 
 		// static vulkan_context* global();
 	};
+}
+
+template <typename ScoreFunc>
+inline gsplat::vulkan::physical_device_collection gsplat::vulkan::vulkan_context::device_collection_sort(ScoreFunc&& func) const {
+    return device_collection().sort<ScoreFunc>(std::forward<ScoreFunc>(func));
 }
 
 #endif // GSPLAT_VULKAN_VULKAN_CONTEXT_H
