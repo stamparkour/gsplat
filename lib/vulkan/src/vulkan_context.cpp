@@ -234,9 +234,22 @@ gsplat::vulkan::vulkan_context::~vulkan_context() {
 	if(debug_messenger_v) vkDestroyDebugUtilsMessengerEXT(instance_v, debug_messenger_v, nullptr);
 	vkDestroyInstance(instance_v, nullptr);
 }
-VkInstance gsplat::vulkan::vulkan_context::instance_handle() const {
+VkInstance vulkan_context::instance_handle() const {
 	return instance_v;
 }
-VkPhysicalDevice gsplat::vulkan::vulkan_context::primary_device_handle() const {
-	return device_v;
+physical_device_collection vulkan_context::device_collection() const {
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance_v, &deviceCount, nullptr);
+	if (deviceCount == 0) {
+		throw std::runtime_error("failed to find GPUs with Vulkan support!");
+	}
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(instance_v, &deviceCount, devices.data());
+
+	std::vector<physical_device> dev_out{deviceCount};
+	for(int i = 0; i < deviceCount; i++) {
+		dev_out[i] = {instance_v, devices[i]};
+	}
+
+	return physical_device_collection{dev_out};
 }
