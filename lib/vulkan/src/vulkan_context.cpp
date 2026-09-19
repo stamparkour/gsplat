@@ -5,6 +5,7 @@
 #include <string>
 #include <cstring>
 #include <iostream>
+#include "validation_layers.h"
 
 using namespace ::gsplat::vulkan;
 
@@ -137,7 +138,7 @@ vulkan_extension_vector gsplat::vulkan::glfw_extensions() {
 
 // helper functions
 
-static std::vector<const char*> get_validation_layer() {
+std::vector<const char*> get_validation_layer() {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 

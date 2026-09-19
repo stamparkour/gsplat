@@ -5,6 +5,7 @@ set(PROJECT_SOURCES
 	"src/vulkan.cpp"
 	"src/vulkan_context.cpp"
 	"src/physical_device.cpp"
+	"src/validation_layers.h"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
@@ -14,9 +15,7 @@ set(PROJECT_HEADERS
 	"include/gsplat/vulkan/compute_shader.h"
 	"include/gsplat/vulkan/image.h"
 	"include/gsplat/vulkan/vulkan_include.h"
-	"include/gsplat/vulkan/physical_device.h"
-	"include/gsplat/vulkan/command_queue.h"
-	"include/gsplat/vulkan/logical_device.h"
+	"include/gsplat/vulkan/device.h"
 )
 
 # add the library
