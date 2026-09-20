@@ -26,4 +26,6 @@ int main(int argc, char** argv) {
 		.memory_host_coherent = true,
 		.memory_device_local = true
 	});
+
+	auto my_queue = my_logical_device->queue_at(0);
 }
