@@ -27,5 +27,5 @@ int main(int argc, char** argv) {
 		.memory_device_local = true
 	});
 
-	auto my_queue = my_logical_device->queue_at(0);
+	auto& my_queue = my_logical_device->queue_at(0);
 }
