@@ -3,11 +3,13 @@
 
 #include <gsplat/vulkan/config.h>
 #include<vulkan/vulkan.h>
+#include <gsplat/vulkan/device.h>
+#include <iostream>
 
 namespace gsplat::vulkan {
 	class compute_shader {
 	public:
-		compute_shader();
+		compute_shader(logical_device* device, istream& file);
 		~compute_shader();
 
 		void dispatch(int x, int y, int z);

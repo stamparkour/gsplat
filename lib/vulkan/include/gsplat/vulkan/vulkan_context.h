@@ -3,7 +3,7 @@
 
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
-#include <gsplat/vulkan/physical_device.h>
+#include <gsplat/vulkan/device.h>
 #include <vector>
 #include <string>
 

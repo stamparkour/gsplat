@@ -232,8 +232,14 @@ vulkan_context::vulkan_context(const vulkan_extension_vector& ext_orig) {
 	device_v = get_default_vulkan_device(instance_v);
 }
 gsplat::vulkan::vulkan_context::~vulkan_context() {
-	if(debug_messenger_v) vkDestroyDebugUtilsMessengerEXT(instance_v, debug_messenger_v, nullptr);
-	vkDestroyInstance(instance_v, nullptr);
+	if (debug_messenger_v) {
+		vkDestroyDebugUtilsMessengerEXT(instance_v, debug_messenger_v, nullptr);
+		debug_messenger_v = nullptr;
+	}
+	if (instance_v) {
+		vkDestroyInstance(instance_v, nullptr);
+		instance_v = nullptr;
+	}
 }
 VkInstance vulkan_context::instance_handle() const {
 	return instance_v;
@@ -247,9 +253,9 @@ physical_device_collection vulkan_context::device_collection() const {
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(instance_v, &deviceCount, devices.data());
 
-	std::vector<physical_device> dev_out{deviceCount};
+	std::vector<physical_device_shared> dev_out{deviceCount};
 	for(int i = 0; i < deviceCount; i++) {
-		dev_out[i] = {instance_v, devices[i]};
+		dev_out[i] = std::make_shared<physical_device>(instance_v, devices[i]);
 	}
 
 	return physical_device_collection{dev_out};
