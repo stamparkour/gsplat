@@ -192,8 +192,22 @@ logical_device::pointer logical_device::malloc(std::size_t size) {
 void logical_device::free(logical_device::pointer ptr) {
 	memory_v.free(ptr);
 }
-void gsplat::vulkan::logical_device::init_heap(std::size_t size, const device_memory_settings& settings) {
-	auto prop = this->physical_device()->memory_properties();
+
+bool device_memory_settings::is_valid(const VkMemoryType& s) const {
+	if (this->memory_host_visible && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) return false;
+	if (this->memory_host_coherent && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) return false;
+	if (this->memory_device_local && !(s.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) return false;
+	return true;
+}
+
+gsplat::vulkan::memory_manager::~memory_manager() {
+	if (memory_v) {
+		vkFreeMemory(device_v->device_handle(), memory_v, nullptr);
+		memory_v = nullptr;
+	}
+}
+memory_manager::memory_manager(logical_device* device_v, std::size_t size, const device_memory_settings& settings) {
+	auto prop = device_v->physical_device()->memory_properties();
 	std::vector<std::pair<int, VkMemoryType>> valid;
 	for (int i = 0; i < prop.memoryTypeCount; i++) {
 		if (settings.is_valid(prop.memoryTypes[i])) {
@@ -212,28 +226,13 @@ void gsplat::vulkan::logical_device::init_heap(std::size_t size, const device_me
 	alloc_info.allocationSize = size;
 	alloc_info.memoryTypeIndex = target.first;
 
-	vkAllocateMemory(this->device_v, &alloc_info, nullptr, &dev_mem);
-	memory_v = memory_manager{
-		size,
-		dev_mem,
-		target.second,
-		prop.memoryHeaps[target.second.heapIndex],
-		this
-	};
-}
-
-bool device_memory_settings::is_valid(const VkMemoryType& s) const {
-	if (this->memory_host_visible && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) return false;
-	if (this->memory_host_coherent && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) return false;
-	if (this->memory_device_local && !(s.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) return false;
-	return true;
-}
-
-gsplat::vulkan::memory_manager::~memory_manager() {
-	if (memory_v) {
-		vkFreeMemory(device_v->device_handle(), memory_v, nullptr);
-		memory_v = nullptr;
-	}
+	vkAllocateMemory(device_v->device_handle(), &alloc_info, nullptr, &dev_mem);
+	heap_size = size;
+	memory_v = dev_mem;
+	type_v = target.second;
+	heap_v = prop.memoryHeaps[target.second.heapIndex];
+	this->device_v = device_v;
+	spans_v.emplace_back(false, 0, size);
 }
 memory_manager::pointer memory_manager::aligned_malloc(std::size_t alignment, std::size_t size) {
 	pointer ptr_o{};

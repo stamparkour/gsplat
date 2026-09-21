@@ -21,11 +21,6 @@ int main(int argc, char** argv) {
 		return score;
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
-	my_logical_device->init_heap(0x100000 * 64, {
-		.memory_host_visible = true,
-		.memory_host_coherent = true,
-		.memory_device_local = true
-	});
 
 	auto& my_queue = my_logical_device->queue_at(0);
 }
