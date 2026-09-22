@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <string>
 #include "validation_layers.h"
+#include <algorithm>
 
 using namespace gsplat::vulkan;
 
@@ -164,6 +165,40 @@ VkInstance gsplat::vulkan::command_queue::instance_handle() const {
 VkQueue gsplat::vulkan::command_queue::queue_handle() const {
 	return queue_v;
 }
+command_queue_collection::command_queue_collection(const std::vector<command_queue>& v) {
+	queue_families_v = v;
+}
+command_queue_collection::size_type command_queue_collection::size() const {
+	return queue_families_v.size();
+}
+bool command_queue_collection::empty() const {
+	return queue_families_v.empty();
+}
+command_queue_collection::iterator command_queue_collection::begin() {
+	return queue_families_v.begin();
+}
+command_queue_collection::iterator command_queue_collection::end() {
+	return queue_families_v.end();
+}
+command_queue_collection::const_iterator command_queue_collection::begin() const {
+	return queue_families_v.begin();
+}
+command_queue_collection::const_iterator command_queue_collection::end() const {
+	return queue_families_v.end();
+}
+command_queue_collection::const_iterator command_queue_collection::cbegin() const {
+	return queue_families_v.cbegin();
+}
+command_queue_collection::const_iterator command_queue_collection::cend() const {
+	return queue_families_v.cend();
+}
+
+command_queue_collection::reference command_queue_collection::at(std::size_t pos) {
+	return queue_families_v.at(pos);
+}
+command_queue_collection::const_reference command_queue_collection::at(std::size_t pos) const {
+	return queue_families_v.at(pos);
+}
 
 gsplat::vulkan::logical_device::~logical_device() {
 	{
@@ -180,65 +215,105 @@ VkInstance gsplat::vulkan::logical_device::instance_handle() const {
 physical_device_shared gsplat::vulkan::logical_device::physical_device() {
 	return physical_device_v.lock();
 }
-const command_queue& gsplat::vulkan::logical_device::queue_at(std::size_t index) const {
-	return queues_v[index];
+command_queue_collection &gsplat::vulkan::logical_device::queue_collection() {
+    return queues_v;
 }
-logical_device::pointer logical_device::aligned_malloc(std::size_t alignment, std::size_t size) {
-	return memory_v.aligned_malloc(alignment, size);
+const command_queue_collection &gsplat::vulkan::logical_device::queue_collection() const {
+    return queues_v;
 }
-logical_device::pointer logical_device::malloc(std::size_t size) {
-	return memory_v.aligned_malloc(16, size);
+device_memory_collection &gsplat::vulkan::logical_device::memory_collection() {
+    return memory_v;
 }
-void logical_device::free(logical_device::pointer ptr) {
-	memory_v.free(ptr);
-}
-
-bool device_memory_settings::is_valid(const VkMemoryType& s) const {
-	if (this->memory_host_visible && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) return false;
-	if (this->memory_host_coherent && !(s.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) return false;
-	if (this->memory_device_local && !(s.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) return false;
-	return true;
+const device_memory_collection &gsplat::vulkan::logical_device::memory_collection() const {
+    return memory_v;
 }
 
-gsplat::vulkan::memory_manager::~memory_manager() {
+gsplat::vulkan::device_memory::~device_memory() {
 	if (memory_v) {
 		vkFreeMemory(device_v->device_handle(), memory_v, nullptr);
 		memory_v = nullptr;
 	}
 }
-memory_manager::memory_manager(logical_device* device_v, std::size_t size, const device_memory_settings& settings) {
+device_memory::device_memory(logical_device* device_v, std::size_t size, const std::vector<device_memory_settings>& ordered_settings) {
 	auto prop = device_v->physical_device()->memory_properties();
-	std::vector<std::pair<int, VkMemoryType>> valid;
-	for (int i = 0; i < prop.memoryTypeCount; i++) {
-		if (settings.is_valid(prop.memoryTypes[i])) {
-			valid.emplace_back(i, prop.memoryTypes[i]);
+	
+	struct entry_t {
+		int score;
+		int index;
+		VkMemoryType* type;
+		VkMemoryHeap* heap;
+	};
+	std::vector<entry_t> valid{prop.memoryHeapCount};
+
+	for(int i = 0; i < prop.memoryHeapCount; i++) {
+		valid[i].index = i;
+		valid[i].heap = &prop.memoryHeaps[i];
+		valid[i].score = -1;
+	}
+	for(int i = 0; i < prop.memoryTypeCount; i++) {
+		valid[prop.memoryTypes[i].heapIndex].type = &prop.memoryTypes[i];
+	}
+	for(auto& v : valid) {
+		if(!v.type || !v.heap) {
+			v.score = -1;
+			continue;
+		}
+		if(size > v.heap->size) {
+			v.score = -1;
+			continue;
+		}
+		for(int i = 0; i < ordered_settings.size(); i++) {
+			const auto& settings = ordered_settings[i];
+			if(settings.is_valid(v.type, v.heap)) {
+				v.score = i;
+				break;
+			}
 		}
 	}
-	if (valid.empty()) {
-		throw std::runtime_error("no memory is valid");
-	}
-	std::pair<int, VkMemoryType>& target = valid[0];
 
+	std::sort(valid.begin(), valid.end(), [](const entry_t& a, const entry_t& b) {
+		if(a.score == b.score) {
+			return a.heap->size < b.heap->size;
+		}
+		return a.score > b.score;
+	});
+	
 	VkDeviceMemory dev_mem;
+	while(true) {
+		if(valid.empty()) {
+			throw std::runtime_error("Failed to allocate device memory. No valid memory types found");
+		}
+		if(valid.back().score < 0) {
+			valid.pop_back();
+			continue;
+		}
 
-	VkMemoryAllocateInfo alloc_info{};
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.allocationSize = size;
-	alloc_info.memoryTypeIndex = target.first;
+		VkMemoryAllocateInfo alloc_info{};
+		alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		alloc_info.allocationSize = size;
+		alloc_info.memoryTypeIndex = valid.back().index;
 
-	vkAllocateMemory(device_v->device_handle(), &alloc_info, nullptr, &dev_mem);
+		if(vkAllocateMemory(device_v->device_handle(), &alloc_info, nullptr, &dev_mem) != VK_SUCCESS) {
+			valid.pop_back();
+			continue;
+		}
+
+		break;
+	}
+
 	heap_size = size;
+	heap_free_size = size;
 	memory_v = dev_mem;
-	type_v = target.second;
-	heap_v = prop.memoryHeaps[target.second.heapIndex];
+	type_v = *valid.back().type;
+	heap_v = *valid.back().heap;
+	creation_settings = ordered_settings[valid.back().score];
 	this->device_v = device_v;
-	spans_v.emplace_back(false, 0, size);
+	spans_v.emplace_back(false, 0, size);	
 }
-memory_manager::pointer memory_manager::aligned_malloc(std::size_t alignment, std::size_t size) {
+device_memory::pointer device_memory::aligned_malloc(std::size_t alignment, std::size_t size) {
 	pointer ptr_o{};
 	ptr_o.ptr = spans_v.end();
-	ptr_o.device_memory_v = memory_v;
-	ptr_o.device_v = device_v;
+	ptr_o.device_memory_v = this;
 
 	for (auto i = spans_v.begin(); i != spans_v.end(); ++i) {
 		auto& v = *i;
@@ -277,13 +352,16 @@ memory_manager::pointer memory_manager::aligned_malloc(std::size_t alignment, st
 		break;
 	}
 
-	if (ptr_o.ptr == spans_v.end()) {
-		throw std::runtime_error("cannot malloc. heap full");
-	}
+	// if (ptr_o.ptr == spans_v.end()) {
+	// 	throw std::runtime_error("cannot malloc. heap full");
+	// }
 	return ptr_o;
 }
+device_memory::pointer device_memory::malloc(std::size_t size) {
+    return aligned_malloc(device_memory_alignment, size);
+}
 
-void gsplat::vulkan::memory_manager::free(pointer ptr) {
+void gsplat::vulkan::device_memory::free(pointer ptr) {
 	auto i = ptr.ptr;
 	if (!i->in_use) {
 		throw std::runtime_error("cannot free memory that is already freed");
@@ -309,4 +387,99 @@ void gsplat::vulkan::memory_manager::free(pointer ptr) {
 			spans_v.erase(j);
 		}
 	}
+}
+bool device_memory::is_valid_ptr(pointer ptr) const {
+	return ptr.device_memory_v == this && ptr.ptr != spans_v.end() && ptr.ptr->in_use;
+}
+std::size_t device_memory::size() const {
+	return heap_size;
+}
+logical_device* device_memory::device() const {
+    return this->device_v;
+}
+device_memory *gsplat::vulkan::device_memory_collection::create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings) {
+	auto ptr = std::make_unique<device_memory>(logical_device_v, size, ordered_settings);
+	auto raw_ptr = ptr.get();
+	memory_v.emplace_back(std::move(ptr));
+	return raw_ptr;
+}
+device_memory_collection::pointer device_memory_collection::aligned_malloc(std::size_t alignment, std::size_t size, const device_memory_settings& settings) {
+    for(auto i = find(settings); i != end(); ++i) {
+		pointer p = (*i)->aligned_malloc(alignment, size);
+		if(is_valid_ptr(p)) {
+			return p;
+		}
+	}
+	std::size_t s = std::max(size, device_memory_min_creation_size);
+	auto new_mem = create(s, {settings});
+	return new_mem->aligned_malloc(alignment, size);
+}
+device_memory_collection::pointer device_memory_collection::malloc(std::size_t size, const device_memory_settings& settings) {
+	return aligned_malloc(device_memory_alignment, size, settings);
+}
+void gsplat::vulkan::device_memory_collection::free(pointer ptr) {
+	if (!ptr.device_memory_v) {
+		throw std::runtime_error("cannot free memory. pointer is null");
+	}
+	if (ptr.device_memory_v->device() != logical_device_v) {
+		throw std::runtime_error("cannot free memory. pointer is from a different logical device");
+	}
+	ptr.device_memory_v->free(ptr);
+}
+device_memory_collection::const_iterator device_memory_collection::begin() const {
+    return memory_v.begin();
+}
+device_memory_collection::const_iterator device_memory_collection::end() const {
+    return memory_v.end();
+}
+device_memory_collection::find_iterator_t device_memory_collection::find(const device_memory_settings& settings) const {
+	find_iterator o{find_iterator{begin(), end(), settings};
+	if(!(*begin())->is_valid(settings)) {
+		++o;
+	}
+    return o;
+}
+bool device_memory_collection::is_valid_ptr(pointer p) const{
+    return p.device_memory_v && p.device_memory_v->device() == logical_device_v && p.device_memory_v->is_valid_ptr(p);
+}
+
+bool device_memory_collection::find_iterator_t::operator ==(const const_iterator& other) const {
+    return it == other;
+}
+bool device_memory_collection::find_iterator_t::operator !=(const const_iterator& other) const {
+    return !(*this == other);
+}
+device_memory_collection::find_iterator_t& device_memory_collection::find_iterator_t::operator ++() {
+	while (++it != end) {
+		if ((*it)->is_valid(settings)) {
+			break;
+		}
+	}
+	return *this;
+}
+device_memory_collection::find_iterator_t device_memory_collection::find_iterator_t::operator ++(int) {
+	find_iterator_t tmp = *this;
+	++(*this);
+	return tmp;
+}
+const std::unique_ptr<device_memory>* device_memory_collection::find_iterator_t::operator ->() {
+	return &(*it);
+}
+const std::unique_ptr<device_memory>& device_memory_collection::find_iterator_t::operator *() {
+	return *it;
+}
+bool device_memory_settings::is_valid(VkMemoryType* type, VkMemoryHeap* heap) const {
+	if (memory_host_visible && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+		return false;
+	}
+	if (memory_host_coherent && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+		return false;
+	}
+	if (memory_device_local && !(type->propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+		return false;
+	}
+	return true;
+}
+bool gsplat::vulkan::device_memory::vulkan_ptr::operator==(nullptr_t) const {
+    return ptr == device_memory_v->spans_v.end();
 }

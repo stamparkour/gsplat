@@ -22,5 +22,9 @@ int main(int argc, char** argv) {
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
 
-	auto& my_queue = my_logical_device->queue_at(0);
+	auto& my_queue = my_logical_device->memory_collection().malloc(50, {
+		.memory_host_visible = true,
+		.memory_host_coherent = true,
+		.memory_device_local = false
+	});
 }
