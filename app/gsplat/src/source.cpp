@@ -17,14 +17,54 @@ int main(int argc, char** argv) {
 	}).front();
 	auto my_queue_family_collection = my_physical_device->queue_families().sort([](const VkQueueFamilyProperties* v) -> int {
 		int score = 0;
-		if (!(v->queueFlags & VK_QUEUE_COMPUTE_BIT)) score = -1;
+		if (!(v->queueFlags & VK_QUEUE_COMPUTE_BIT)) return -1;
+		// if (!(v->queueFlags & VK_QUEUE_TRANSFER_BIT)) return -1; // implicit from VK_QUEUE_COMPUTE_BIT
 		return score;
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
 
-	auto& my_queue = my_logical_device->memory_collection().malloc(50, {
-		.memory_host_visible = true,
-		.memory_host_coherent = true,
-		.memory_device_local = false
-	});
+	array_buffer<int> buf{buffer_creation_settings{
+		.usage_transfer_src = true,
+		.usage_storage_buffer = true,
+		.size = 500,
+		.memory = {
+			device_memory_settings{
+				.memory_device_local = true
+			}
+		},
+		.queues = {
+			&my_logical_device->queue_collection().at(0),
+		}
+	}};
+
+	array_buffer<int> buf2{buffer_creation_settings{
+		.usage_transfer_dst = true,
+		.usage_storage_buffer = true,
+		.size = 500,
+		.memory = {
+			device_memory_settings{
+				.memory_device_local = true
+			}
+		},
+		.queues = {
+			&my_logical_device->queue_collection().at(0),
+		}
+	}};
+
+	{
+		auto l = buf.memory_lock();
+		int i = 0;
+		for (auto& v : l) {
+			v = i;
+			i++;
+		}
+		std::cout << "in buffer" << std::endl;
+	}
+
+	buf2.transfer(&buf);
+
+	{
+		auto l = buf2.memory_lock();
+		std::cout << "in buffer" << std::endl;
+	}
 }

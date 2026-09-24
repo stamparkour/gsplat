@@ -66,7 +66,14 @@ logical_device_shared gsplat::vulkan::physical_device::create_logical_device(con
 	for (int i = 0; i < queue_family_indices.queue_families_v.size(); ++i) {
 		VkQueue q;
 		vkGetDeviceQueue(o_device, queue_family_indices.queue_families_v[i].first, 0, &q);
-		queues[i] = command_queue{instance_ref_v, q, queue_family_indices.queue_families_v[i].first, this->shared_from_this()};
+		VkCommandPool pool;
+		VkCommandPoolCreateInfo pool_info{};
+		pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+		pool_info.queueFamilyIndex = queue_family_indices.queue_families_v[i].first;
+
+		vkCreateCommandPool(o_device, &pool_info, nullptr, &pool);
+		queues[i] = command_queue{instance_ref_v, q, pool, queue_family_indices.queue_families_v[i].first, this->shared_from_this()};
 	}
 
 	auto ptr = std::make_shared<logical_device>(
@@ -75,7 +82,7 @@ logical_device_shared gsplat::vulkan::physical_device::create_logical_device(con
 		this->shared_from_this(),
 		queues
 	);
-	for (auto& v : queues) {
+	for (auto& v : ptr->queues_v) {
 		v.source_logical_device_v = ptr;
 	}
 	return ptr;
@@ -165,6 +172,12 @@ VkInstance gsplat::vulkan::command_queue::instance_handle() const {
 VkQueue gsplat::vulkan::command_queue::queue_handle() const {
 	return queue_v;
 }
+VkCommandPool gsplat::vulkan::command_queue::pool_handle() {
+	return pool_v;
+}
+int command_queue::queue_family() const {
+	return this->source_queue_family_index;
+}
 command_queue_collection::command_queue_collection(const std::vector<command_queue>& v) {
 	queue_families_v = v;
 }
@@ -203,6 +216,9 @@ command_queue_collection::const_reference command_queue_collection::at(std::size
 gsplat::vulkan::logical_device::~logical_device() {
 	{
 		memory_v = {};
+	}
+	for (int i = 0; i < queues_v.size(); i++) {
+		vkDestroyCommandPool(device_handle(), queues_v.at(i).pool_handle(), nullptr);
 	}
 	vkDestroyDevice(device_v, nullptr);
 }
@@ -388,8 +404,11 @@ void gsplat::vulkan::device_memory::free(pointer ptr) {
 		}
 	}
 }
-bool device_memory::is_valid_ptr(pointer ptr) const {
-	return ptr.device_memory_v == this && ptr.ptr != spans_v.end() && ptr.ptr->in_use;
+bool device_memory::is_valid_ptr(pointer ptr) {
+	return ptr.device_memory_v != nullptr && ptr.ptr != ptr.device_memory_v->spans_v.end() && ptr.ptr->in_use;
+}
+device_memory* device_memory::get_memory_ptr(pointer ptr) {
+	return ptr.device_memory_v;
 }
 std::size_t device_memory::size() const {
 	return heap_size;
@@ -397,16 +416,40 @@ std::size_t device_memory::size() const {
 logical_device* device_memory::device() const {
     return this->device_v;
 }
-device_memory *gsplat::vulkan::device_memory_collection::create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings) {
+bool device_memory::is_valid(const device_memory_settings& settings) const {
+	return settings.is_valid(&this->type_v, &this->heap_v);
+}
+VkDeviceMemory device_memory::memory_handle() const {
+	return memory_v;
+}
+const VkMemoryType& device_memory::type_vulkan() const {
+	return type_v;
+}
+const VkMemoryHeap& device_memory::heap_vulkan() const {
+	return heap_v;
+}
+device_memory *device_memory_collection::create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings) {
 	auto ptr = std::make_unique<device_memory>(logical_device_v, size, ordered_settings);
+	auto s = ptr->heap_vulkan().size;
 	auto raw_ptr = ptr.get();
-	memory_v.emplace_back(std::move(ptr));
+	if (memory_v.size() == 0) {
+		memory_v.emplace_back(std::move(ptr));
+	}
+	else {
+		for (auto i = memory_v.begin(); i != memory_v.end(); ++i) {
+			auto& v = *i;
+			if (s >= v->heap_vulkan().size) {
+				memory_v.emplace(i, std::move(ptr));
+				break;
+			}
+		}
+	}
 	return raw_ptr;
 }
 device_memory_collection::pointer device_memory_collection::aligned_malloc(std::size_t alignment, std::size_t size, const device_memory_settings& settings) {
     for(auto i = find(settings); i != end(); ++i) {
 		pointer p = (*i)->aligned_malloc(alignment, size);
-		if(is_valid_ptr(p)) {
+		if(device_memory::is_valid_ptr(p)) {
 			return p;
 		}
 	}
@@ -433,14 +476,11 @@ device_memory_collection::const_iterator device_memory_collection::end() const {
     return memory_v.end();
 }
 device_memory_collection::find_iterator_t device_memory_collection::find(const device_memory_settings& settings) const {
-	find_iterator o{find_iterator{begin(), end(), settings};
-	if(!(*begin())->is_valid(settings)) {
+	find_iterator o{begin(), end(), settings};
+	if(memory_v.size() != 0 && !(*begin())->is_valid(settings)) {
 		++o;
 	}
     return o;
-}
-bool device_memory_collection::is_valid_ptr(pointer p) const{
-    return p.device_memory_v && p.device_memory_v->device() == logical_device_v && p.device_memory_v->is_valid_ptr(p);
 }
 
 bool device_memory_collection::find_iterator_t::operator ==(const const_iterator& other) const {
@@ -468,15 +508,17 @@ const std::unique_ptr<device_memory>* device_memory_collection::find_iterator_t:
 const std::unique_ptr<device_memory>& device_memory_collection::find_iterator_t::operator *() {
 	return *it;
 }
-bool device_memory_settings::is_valid(VkMemoryType* type, VkMemoryHeap* heap) const {
-	if (memory_host_visible && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-		return false;
-	}
-	if (memory_host_coherent && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-		return false;
-	}
-	if (memory_device_local && !(type->propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
-		return false;
+bool device_memory_settings::is_valid(const VkMemoryType* type, const VkMemoryHeap* heap) const {
+	if (type != nullptr) {
+		if (memory_host_visible && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+			return false;
+		}
+		if (memory_host_coherent && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+			return false;
+		}
+		if (memory_device_local && !(type->propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+			return false;
+		}
 	}
 	return true;
 }

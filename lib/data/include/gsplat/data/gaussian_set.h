@@ -9,7 +9,7 @@
 
 namespace gsplat::data {
 	class gaussian_set {
-		gsplat::vulkan::buffer<gaussian> buffer_v;
+		gsplat::vulkan::array_buffer<gaussian> buffer_v;
 		std::vector<gaussian> gaussians_v;
 	public:
 		gaussian_set();
@@ -21,8 +21,8 @@ namespace gsplat::data {
 
 		std::vector<gaussian>& vector();
 		const std::vector<gaussian>& vector() const;
-		gsplat::vulkan::buffer<gaussian>& buffer_vulkan();
-		const gsplat::vulkan::buffer<gaussian>& buffer_vulkan() const;
+		gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan();
+		const gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan() const;
 	};
 }
 

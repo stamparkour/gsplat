@@ -12,6 +12,7 @@ namespace gsplat::vulkan {
 	constexpr std::size_t device_memory_alignment = 256;
 	constexpr std::size_t device_memory_min_creation_size = 0x100000 * 16; // 16MB
 
+	class device_memory_collection;
 	class logical_device;
 	class physical_device;
 	class command_queue;
@@ -25,7 +26,7 @@ namespace gsplat::vulkan {
 		friend class physical_device;
 		friend class logical_device;
 	public:
-		// index, family name
+		// family index, family name
 		using value_type = std::pair<int, VkQueueFamilyProperties>;
 		using reference = value_type&;
 		using const_reference = const value_type&;
@@ -123,12 +124,13 @@ namespace gsplat::vulkan {
 		friend class gsplat::vulkan::physical_device;
 		VkQueue queue_v = nullptr;
 		VkInstance instance_v = nullptr;
-		int source_index = 0;
+		int source_queue_family_index = 0;
 		physical_device_weak source_physical_device_v{};
 		logical_device_weak source_logical_device_v{};
+		VkCommandPool pool_v;
 	public:
-		command_queue(VkInstance instance_v, VkQueue queue_v, int source_index, physical_device_shared source_physical_device_v) :
-			instance_v(instance_v), queue_v(queue_v), source_index(source_index), source_physical_device_v(source_physical_device_v) {}
+		command_queue(VkInstance instance_v, VkQueue queue_v, VkCommandPool pool_v, int source_queue_family_index, physical_device_shared source_physical_device_v) :
+			instance_v(instance_v), queue_v(queue_v), pool_v(pool_v), source_queue_family_index(source_queue_family_index), source_physical_device_v(source_physical_device_v) { }
 		command_queue() = default;
 		~command_queue() {}
 
@@ -136,6 +138,8 @@ namespace gsplat::vulkan {
 		logical_device_shared logical_device() const;
 		VkInstance instance_handle() const;
 		VkQueue queue_handle() const;
+		VkCommandPool pool_handle();
+		int queue_family() const;
 	};
 	class command_queue_collection {
 	public:
@@ -173,7 +177,7 @@ namespace gsplat::vulkan {
 		bool memory_host_coherent;
 		bool memory_device_local;
 
-		bool is_valid(VkMemoryType*, VkMemoryHeap*) const;
+		bool is_valid(const VkMemoryType*, const VkMemoryHeap*) const;
 	};
 	class device_memory {
 		friend class gsplat::vulkan::device_memory_collection;
@@ -208,11 +212,16 @@ namespace gsplat::vulkan {
 		pointer malloc(std::size_t size);
 		void free(pointer);
 
-		bool is_valid_ptr(pointer) const;
+		static bool is_valid_ptr(pointer);
+		static device_memory* get_memory_ptr(pointer);
 		std::size_t size() const;
 		logical_device* device() const;
 
 		bool is_valid(const device_memory_settings& settings) const;
+
+		VkDeviceMemory memory_handle() const;
+		const VkMemoryType& type_vulkan() const;
+		const VkMemoryHeap& heap_vulkan() const;
 	};
 
 	class device_memory_collection {
@@ -235,7 +244,7 @@ namespace gsplat::vulkan {
 			bool operator ==(const const_iterator& other) const;
 			bool operator !=(const const_iterator& other) const;
 		};
-
+		// greatest heap size to smallest heap size
 		std::vector<std::unique_ptr<device_memory>> memory_v;
 		logical_device* logical_device_v = nullptr;
 	public:
@@ -247,7 +256,6 @@ namespace gsplat::vulkan {
 		pointer aligned_malloc(std::size_t alignment, std::size_t size, const device_memory_settings& = {});
 		pointer malloc(std::size_t size, const device_memory_settings& = {});
 		void free(pointer ptr);
-		bool is_valid_ptr(pointer) const;
 
 		const_iterator begin() const;
 		const_iterator end() const;
