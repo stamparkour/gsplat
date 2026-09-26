@@ -13,12 +13,12 @@ namespace gsplat::vulkan {
 
 	class basic_buffer {
 	protected:
-		VkDevice device_v;
-		VkDeviceMemory memory_v;
-		VkBuffer buffer_v;
-		VkQueue queue_v;
-		VkCommandPool pool_v;
-		std::size_t size_v;
+		VkDevice device_v{};
+		VkDeviceMemory memory_v{};
+		VkBuffer buffer_v{};
+		VkQueue queue_v{};
+		VkCommandPool pool_v{};
+		std::size_t size_v{};
 	public:
 		basic_buffer() = default;
 		virtual ~basic_buffer();

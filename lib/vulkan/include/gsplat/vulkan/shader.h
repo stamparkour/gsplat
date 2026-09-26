@@ -1,51 +1,58 @@
-#ifndef GSPLAT_VULKAN_BUFFER_H
-#define GSPLAT_VULKAN_BUFFER_H
+#ifndef GSPLAT_VULKAN_SHADER_H
+#define GSPLAT_VULKAN_SHADER_H
 
 #include <gsplat/vulkan/config.h>
 #include<vulkan/vulkan.h>
 #include <gsplat/vulkan/device.h>
+#include <gsplat/vulkan/buffer.h>
 #include <iostream>
 
 namespace gsplat::vulkan {
-	class shader_descriptor_layout {
+	class shader;
 
-	};
-
-	class basic_shader {
-	protected:
-		VkDevice device_v;
-		VkShaderModule shader_v;
-	public:
-		basic_shader();
-		virtual ~basic_shader();
-
-		VkDevice device_handle();
-		VkShaderModule shader_handle();
-	};
-
-	struct compue_shader_pipeline_settings {
-		bool render_pipeline;
-		bool compute_pipeline;
+	struct compute_shader_pipeline_settings {
 		bool use_fence;
+		int storage_buffer_count;
+		command_queue* queue;
+		gsplat::vulkan::shader* shader;
 	};
-	class compue_shader_pipeline {
+	class compute_shader_pipeline {
+		command_queue* queue_v;
+		VkDescriptorSetLayout desc_layout_v;
+		VkPipelineLayout pipeline_layout_v;
+		VkDevice device_v;
 	public:
-		compue_shader_pipeline(const compue_shader_pipeline_settings&);
-		~compue_shader_pipeline();
+		compute_shader_pipeline(const compute_shader_pipeline_settings&);
+		~compute_shader_pipeline();
 
+		compute_shader_pipeline(const compute_shader_pipeline&) = delete;
+		compute_shader_pipeline& operator =(const compute_shader_pipeline&) = delete;
+
+		void bind(int location, gsplat::vulkan::basic_buffer*);
 		void invoke_compute(int x, int y, int z);
 		void wait_fence();
 	};
 
 	struct shader_creation_settings {
-		const char* begin_spirv;
-		const char* end_spirv;
+		const char* file_ptr;
+		std::size_t file_size;
+		logical_device* device;
 	};
 
-	class shader : public basic_shader {
+	class shader {
+		VkShaderModule shader_v;
+		VkDevice device_v;
+		logical_device* logical_device_v;
 	public:
 		shader(const shader_creation_settings&);
+		~shader();
+
+		shader(const shader&) = delete;
+		shader& operator =(const shader&) = delete;
+
+		VkShaderModule shader_handle() const;
+		VkDevice device_handle() const;
 	};
 }
 
-#endif // GSPLAT_VULKAN_BUFFER_H
+#endif // GSPLAT_VULKAN_SHADER_H

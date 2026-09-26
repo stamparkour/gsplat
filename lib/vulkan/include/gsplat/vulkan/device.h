@@ -176,8 +176,9 @@ namespace gsplat::vulkan {
 		bool memory_host_visible;
 		bool memory_host_coherent;
 		bool memory_device_local;
+		int type_bitmask; // 0 -> all good
 
-		bool is_valid(const VkMemoryType*, const VkMemoryHeap*) const;
+		bool is_valid(const VkMemoryType*, int type_index, const VkMemoryHeap*) const;
 	};
 	class device_memory {
 		friend class gsplat::vulkan::device_memory_collection;
@@ -199,6 +200,7 @@ namespace gsplat::vulkan {
 		std::size_t heap_free_size = 0;
 		VkDeviceMemory memory_v = nullptr;
 		VkMemoryType type_v{};
+		int source_type_index;
 		VkMemoryHeap heap_v{};
 		device_memory_settings creation_settings;
 		logical_device* device_v = nullptr;

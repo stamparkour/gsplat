@@ -1,5 +1,6 @@
 #include <iostream>
 #include <gsplat/vulkan.h>
+#include <gsplat/core/read_file.h>
 
 using namespace gsplat::vulkan;
 
@@ -29,7 +30,8 @@ int main(int argc, char** argv) {
 		.size = 500,
 		.memory = {
 			device_memory_settings{
-				.memory_device_local = true
+				.memory_host_visible = true,
+				.memory_host_coherent = true,
 			}
 		},
 		.queues = {
@@ -67,4 +69,23 @@ int main(int argc, char** argv) {
 		auto l = buf2.memory_lock();
 		std::cout << "in buffer" << std::endl;
 	}
+
+	auto file = gsplat::core::load_entire_file_binary("shaders/my_shader.slang.spv");
+
+	shader my_shader{
+		shader_creation_settings{
+			.file_ptr = file.data(),
+			.file_size = file.size(),
+			.device = my_logical_device.get()
+		}
+	};
+
+	compute_shader_pipeline pipe{
+		{
+			.use_fence = true,
+			.storage_buffer_count = 2,
+			.queue = &my_logical_device->queue_collection().at(0),
+			.shader = &my_shader
+		}
+	};
 }

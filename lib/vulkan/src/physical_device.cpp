@@ -255,19 +255,22 @@ device_memory::device_memory(logical_device* device_v, std::size_t size, const s
 	
 	struct entry_t {
 		int score;
-		int index;
+		int heap_index;
+		int type_index;;
 		VkMemoryType* type;
 		VkMemoryHeap* heap;
 	};
 	std::vector<entry_t> valid{prop.memoryHeapCount};
 
 	for(int i = 0; i < prop.memoryHeapCount; i++) {
-		valid[i].index = i;
+		valid[i].heap_index = i;
 		valid[i].heap = &prop.memoryHeaps[i];
 		valid[i].score = -1;
 	}
 	for(int i = 0; i < prop.memoryTypeCount; i++) {
-		valid[prop.memoryTypes[i].heapIndex].type = &prop.memoryTypes[i];
+		int index = prop.memoryTypes[i].heapIndex;
+		valid[index].type = &prop.memoryTypes[i];
+		valid[index].type_index = i;
 	}
 	for(auto& v : valid) {
 		if(!v.type || !v.heap) {
@@ -280,7 +283,7 @@ device_memory::device_memory(logical_device* device_v, std::size_t size, const s
 		}
 		for(int i = 0; i < ordered_settings.size(); i++) {
 			const auto& settings = ordered_settings[i];
-			if(settings.is_valid(v.type, v.heap)) {
+			if(settings.is_valid(v.type, v.type_index, v.heap)) {
 				v.score = i;
 				break;
 			}
@@ -307,7 +310,7 @@ device_memory::device_memory(logical_device* device_v, std::size_t size, const s
 		VkMemoryAllocateInfo alloc_info{};
 		alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		alloc_info.allocationSize = size;
-		alloc_info.memoryTypeIndex = valid.back().index;
+		alloc_info.memoryTypeIndex = valid.back().type_index;
 
 		if(vkAllocateMemory(device_v->device_handle(), &alloc_info, nullptr, &dev_mem) != VK_SUCCESS) {
 			valid.pop_back();
@@ -317,6 +320,7 @@ device_memory::device_memory(logical_device* device_v, std::size_t size, const s
 		break;
 	}
 
+	this->source_type_index = valid.back().type_index;
 	heap_size = size;
 	heap_free_size = size;
 	memory_v = dev_mem;
@@ -417,7 +421,7 @@ logical_device* device_memory::device() const {
     return this->device_v;
 }
 bool device_memory::is_valid(const device_memory_settings& settings) const {
-	return settings.is_valid(&this->type_v, &this->heap_v);
+	return settings.is_valid(&this->type_v, source_type_index, &this->heap_v);
 }
 VkDeviceMemory device_memory::memory_handle() const {
 	return memory_v;
@@ -431,17 +435,22 @@ const VkMemoryHeap& device_memory::heap_vulkan() const {
 device_memory *device_memory_collection::create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings) {
 	auto ptr = std::make_unique<device_memory>(logical_device_v, size, ordered_settings);
 	auto s = ptr->heap_vulkan().size;
-	auto raw_ptr = ptr.get();
+	device_memory* raw_ptr = ptr.get();
 	if (memory_v.size() == 0) {
 		memory_v.emplace_back(std::move(ptr));
 	}
 	else {
+		bool sucess = false;
 		for (auto i = memory_v.begin(); i != memory_v.end(); ++i) {
 			auto& v = *i;
 			if (s >= v->heap_vulkan().size) {
 				memory_v.emplace(i, std::move(ptr));
+				sucess = true;
 				break;
 			}
+		}
+		if (!sucess) {
+			memory_v.emplace_back(std::move(ptr));
 		}
 	}
 	return raw_ptr;
@@ -508,7 +517,7 @@ const std::unique_ptr<device_memory>* device_memory_collection::find_iterator_t:
 const std::unique_ptr<device_memory>& device_memory_collection::find_iterator_t::operator *() {
 	return *it;
 }
-bool device_memory_settings::is_valid(const VkMemoryType* type, const VkMemoryHeap* heap) const {
+bool device_memory_settings::is_valid(const VkMemoryType* type, int type_index, const VkMemoryHeap* heap) const {
 	if (type != nullptr) {
 		if (memory_host_visible && !(type->propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
 			return false;
@@ -520,6 +529,11 @@ bool device_memory_settings::is_valid(const VkMemoryType* type, const VkMemoryHe
 			return false;
 		}
 	}
+
+	if (type_bitmask != 0 && !(type_bitmask & (1 << type_index))) {
+		return false;
+	}
+
 	return true;
 }
 bool gsplat::vulkan::device_memory::vulkan_ptr::operator==(nullptr_t) const {

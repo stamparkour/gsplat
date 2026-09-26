@@ -105,16 +105,15 @@ buffer::buffer(const buffer_creation_settings& settings) {
 	}
 	VkMemoryRequirements prop;
 	vkGetBufferMemoryRequirements(this->device_v, this->buffer_v, &prop);
-	VkMemoryType tmp_type{};
-	tmp_type.heapIndex = -1;
-	tmp_type.propertyFlags = prop.memoryTypeBits;
 	std::size_t alignment = std::gcd((std::size_t)prop.alignment, settings.min_alignment);
 	device_memory::pointer ptr{};
 	for (auto& v : settings.memory) {
-		if (!v.is_valid(&tmp_type, nullptr)) {
-			continue;
-		}
-		auto p = ld->memory_collection().aligned_malloc(alignment, prop.size, v);
+		auto tmp_settings = v;
+		tmp_settings.type_bitmask = prop.memoryTypeBits;
+		//if (!v.is_valid(&tmp_type, nullptr)) {
+		//	continue;
+		//}
+		auto p = ld->memory_collection().aligned_malloc(alignment, prop.size, tmp_settings);
 		if (device_memory::is_valid_ptr(p)) {
 			pointer_v = p;
 			break;
