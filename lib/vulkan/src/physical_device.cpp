@@ -172,7 +172,7 @@ VkInstance gsplat::vulkan::command_queue::instance_handle() const {
 VkQueue gsplat::vulkan::command_queue::queue_handle() const {
 	return queue_v;
 }
-VkCommandPool gsplat::vulkan::command_queue::pool_handle() {
+VkCommandPool gsplat::vulkan::command_queue::pool_handle() const {
 	return pool_v;
 }
 int command_queue::queue_family() const {

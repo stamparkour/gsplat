@@ -81,11 +81,18 @@ int main(int argc, char** argv) {
 	};
 
 	compute_shader_pipeline pipe{
-		{
-			.use_fence = true,
+		compute_shader_pipeline_settings{
 			.storage_buffer_count = 2,
 			.queue = &my_logical_device->queue_collection().at(0),
 			.shader = &my_shader
 		}
 	};
+
+	pipe.bind(0, &buf2);
+	pipe.bind(1, &buf);
+	pipe.invoke_compute(500, 1, 1);
+
+	{
+		auto l = buf.memory_lock();
+	}
 }

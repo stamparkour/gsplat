@@ -138,7 +138,7 @@ namespace gsplat::vulkan {
 		logical_device_shared logical_device() const;
 		VkInstance instance_handle() const;
 		VkQueue queue_handle() const;
-		VkCommandPool pool_handle();
+		VkCommandPool pool_handle() const;
 		int queue_family() const;
 	};
 	class command_queue_collection {

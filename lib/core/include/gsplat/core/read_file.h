@@ -21,6 +21,8 @@ namespace gsplat::core {
 
        std::vector<char> buffer(size);
 
+       file.read(buffer.data(), size);
+
         return buffer;
     }
 }
