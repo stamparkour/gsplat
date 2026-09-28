@@ -24,6 +24,18 @@ int main(int argc, char** argv) {
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
 
+	array_buffer<int> buf2{buffer_creation_settings{
+		.usage_transfer_dst = true,
+		.usage_storage_buffer = true,
+		.size = 500,
+		.memory = {
+			device_memory_settings{}
+		},
+		.queues = {
+			&my_logical_device->queue_collection().at(0),
+		}
+	}};
+
 	array_buffer<int> buf{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_storage_buffer = true,
@@ -32,20 +44,6 @@ int main(int argc, char** argv) {
 			device_memory_settings{
 				.memory_host_visible = true,
 				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			&my_logical_device->queue_collection().at(0),
-		}
-	}};
-
-	array_buffer<int> buf2{buffer_creation_settings{
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = 500,
-		.memory = {
-			device_memory_settings{
-				.memory_device_local = true
 			}
 		},
 		.queues = {
