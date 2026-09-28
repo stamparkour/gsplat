@@ -3,6 +3,8 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/data.cpp"
+	"src/gaussian.cpp"
+	"src/image.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/data/configure.h"

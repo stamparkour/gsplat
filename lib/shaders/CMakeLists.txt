@@ -49,7 +49,7 @@ foreach(SRC_FILE ${SLANG_COMPUTE_SOURCES})
     # Create the custom rule for this specific file
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -profile spirv_1_1 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
+        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -profile spirv_1_1 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
         DEPENDS "${ABS_SRC_FILE}"
         COMMENT "Compiling ${FILE_NAME} to SPIR-V..."
     )

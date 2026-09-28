@@ -2,6 +2,7 @@
 #define GSPLAT_DATA_GAUSSIAN_H
 
 #include <gsplat/data/configure.h>
+#include <gsplat/data/gaussian_color.h>
 
 namespace gsplat::data {
 	// Vulkan aligned
@@ -10,11 +11,13 @@ namespace gsplat::data {
 		glm::vec4 mean;
 		glm::vec4 quaternion;
 		glm::vec4 scale; // only uses 3 values
+		gaussian_color color;
 	};
 	// Vulkan aligned
 	struct gaussian2d {
-		glm::mat2 covariance;
-		glm::vec2 mean;
+		int source_index;
+		alignas(sizeof(glm::vec2)) glm::mat2 covariance;
+		alignas(sizeof(glm::vec2)) glm::vec2 mean;
 	};
 }
 

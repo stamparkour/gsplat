@@ -8,7 +8,7 @@
 
 namespace gsplat::data {
 	// Vulkan aligned
-	struct pixel {
+	struct alignas(sizeof(std::uint8_t) * 4) pixel {
 		std::uint8_t r;
 		std::uint8_t g;
 		std::uint8_t b;
