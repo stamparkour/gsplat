@@ -63,11 +63,6 @@ int main(int argc, char** argv) {
 
 	buf2.transfer(&buf);
 
-	{
-		auto l = buf2.memory_lock();
-		std::cout << "in buffer" << std::endl;
-	}
-
 	auto file = gsplat::core::load_entire_file_binary("shaders/my_shader.slang.spv");
 
 	shader my_shader{

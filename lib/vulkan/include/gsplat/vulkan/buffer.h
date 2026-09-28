@@ -80,10 +80,11 @@ namespace gsplat::vulkan {
 			void* end();
 		};
 	protected:
-		buffer_creation_settings settings_v;
-		logical_device_weak logical_device_v;
+		buffer_creation_settings settings_v{};
+		logical_device_weak logical_device_v{};
 		device_memory::pointer pointer_v{};
 	public:
+		buffer() = default;
 		buffer(const buffer_creation_settings&);
 		~buffer();
 
@@ -138,6 +139,7 @@ namespace gsplat::vulkan {
 				settings.set_size(settings.size * sizeof(T)).set_alignment(alignof(T))
 			) {
 		}
+		array_buffer() = default;
 		~array_buffer() = default;
 
 

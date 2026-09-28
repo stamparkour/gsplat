@@ -17,7 +17,7 @@ constexpr VkApplicationInfo static_appInfo {
 	.applicationVersion = VK_MAKE_VERSION(config::app_version_major, config::app_version_minor, config::app_version_patch),
 	.pEngineName = config::engine_name,
 	.engineVersion = VK_MAKE_VERSION(config::engine_version_major, config::engine_version_minor, config::engine_version_patch),
-	.apiVersion = VK_API_VERSION_1_0
+	.apiVersion = VK_API_VERSION_1_1
 };
 
 const std::vector<const char*> static_validation_layers = {

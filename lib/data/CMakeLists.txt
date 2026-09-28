@@ -11,6 +11,8 @@ set(PROJECT_HEADERS
 	"include/gsplat/data/gaussian_color.h"
 	"include/gsplat/data/image.h"
 	"include/gsplat/data.h"
+	"include/gsplat/data/database.h"
+	"include/gsplat/data/image_set.h"
 )
 
 # add the library

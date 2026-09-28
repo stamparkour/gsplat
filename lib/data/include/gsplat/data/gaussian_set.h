@@ -5,7 +5,7 @@
 #include <gsplat/data/gaussian.h>
 #include <gsplat/vulkan/buffer.h>
 #include <vector>
-#include <filesystem>
+#include <string>
 
 namespace gsplat::data {
 	class gaussian_set {
@@ -14,15 +14,15 @@ namespace gsplat::data {
 	public:
 		gaussian_set();
 
-		static gaussian_set colmap(const std::filesystem::path& colmap_dir);
+		static gaussian_set colmap_txt(const std::string& colmap_dir);
 
 		void store_vulkan();
 		void fetch_vulkan();
 
-		std::vector<gaussian>& vector();
-		const std::vector<gaussian>& vector() const;
-		gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan();
-		const gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan() const;
+		std::vector<gaussian>& data() { return gaussians_v; }
+		const std::vector<gaussian>& data() const { return gaussians_v; }
+		gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan() { return buffer_v; }
+		const gsplat::vulkan::array_buffer<gaussian>& buffer_vulkan() const { return buffer_v; }
 	};
 }
 

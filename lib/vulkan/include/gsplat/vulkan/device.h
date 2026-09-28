@@ -251,7 +251,7 @@ namespace gsplat::vulkan {
 		logical_device* logical_device_v = nullptr;
 	public:
 		device_memory_collection() = default;
-		device_memory_collection(logical_device* logical_device_v) : logical_device_v(logical_device_v) {}
+		device_memory_collection(logical_device* logical_device_v); //  : logical_device_v(logical_device_v) {}
 
 		device_memory* create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings = {});
 		// TODO: should sort based on remaining size. and request for a specific size available.

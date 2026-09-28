@@ -6,8 +6,10 @@
 namespace gsplat::data {
 	// Vulkan aligned
 	struct gaussian {
-		glm::mat4 covariance;
+		glm::mat4 covariance; // 3x3 but requires 4x4 alignment
 		glm::vec4 mean;
+		glm::vec4 quaternion;
+		glm::vec4 scale; // only uses 3 values
 	};
 	// Vulkan aligned
 	struct gaussian2d {
