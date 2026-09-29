@@ -6,6 +6,7 @@ set(PROJECT_SOURCES
 )
 set(PROJECT_HEADERS
 	"include/gsplat/gsplat_config.h.in"
+	"include/gsplat/core/word_iterable.h"
 	"include/gsplat/core/read_file.h"
 	"include/gsplat/core.h"
 )

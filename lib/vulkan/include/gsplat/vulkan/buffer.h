@@ -23,9 +23,6 @@ namespace gsplat::vulkan {
 		basic_buffer() = default;
 		virtual ~basic_buffer();
 
-		basic_buffer(const basic_buffer&) = delete;
-		basic_buffer& operator =(const basic_buffer&) = delete;
-
 		VkDevice device_handle() const;
 		VkDeviceMemory memory_handle() const;
 		VkBuffer buffer_handle() const;

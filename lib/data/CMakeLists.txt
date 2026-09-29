@@ -36,8 +36,5 @@ target_link_libraries(gsplat_data PUBLIC glm::glm)
 include(eigen)
 target_link_libraries(gsplat_data PUBLIC Eigen3::Eigen)
 
-include(opencv)
-target_link_libraries(gsplat_data PUBLIC ${OpenCV_LIBS})
-
 # include(colmap)
 # target_link_libraries(gsplat_data PUBLIC colmap::colmap)

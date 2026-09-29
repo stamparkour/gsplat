@@ -15,7 +15,9 @@ namespace gsplat::data {
 	public:
 		gaussian_set() = default;
 
-		static gaussian_set colmap_txt(const std::string& colmap_dir, gsplat::vulkan::command_queue*);
+		// generates the vulkan buffer and gaussian vector.
+		// does not generate covariance matrix. must be done by another function (compute shader)
+		static gaussian_set colmap_txt(const std::string& path_colmap_points3d_txt, gsplat::vulkan::command_queue*);
 
 		void store_vulkan();
 		void fetch_vulkan();

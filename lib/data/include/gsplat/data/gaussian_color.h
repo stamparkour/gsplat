@@ -6,7 +6,7 @@
 namespace gsplat::data {
 	// Vulkan aligned
 	struct gaussian_color {
-		glm::vec4 color;
+		glm::vec4 color; // r,g,b,a
 		// additional arguments.
 	};
 }
