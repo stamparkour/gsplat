@@ -11,10 +11,11 @@ namespace gsplat::data {
 	class gaussian_set {
 		gsplat::vulkan::array_buffer<gaussian> buffer_v;
 		std::vector<gaussian> gaussians_v;
+		gsplat::vulkan::command_queue* queue_v;
 	public:
-		gaussian_set();
+		gaussian_set() = default;
 
-		static gaussian_set colmap_txt(const std::string& colmap_dir);
+		static gaussian_set colmap_txt(const std::string& colmap_dir, gsplat::vulkan::command_queue*);
 
 		void store_vulkan();
 		void fetch_vulkan();

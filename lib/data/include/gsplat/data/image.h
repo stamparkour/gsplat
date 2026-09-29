@@ -21,6 +21,7 @@ namespace gsplat::data {
 		std::size_t width_v;
 		std::size_t height_v;
 		gsplat::vulkan::array_buffer<pixel> image_v;
+		gsplat::vulkan::command_queue* queue_v;
 	public:
 		image() = default;
 		static image read_image(std::string& path, gsplat::vulkan::command_queue*);
