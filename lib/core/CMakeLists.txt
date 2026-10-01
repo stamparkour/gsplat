@@ -3,6 +3,7 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/core.cpp"
+	"src/stb_image.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/gsplat_config.h.in"

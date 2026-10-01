@@ -6,8 +6,9 @@
 
 using namespace gsplat::data;
 using namespace gsplat::vulkan;
+using namespace gsplat::core;
 
-image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string&  images_txt_path, gsplat::vulkan::command_queue* q) {
+image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, gsplat::vulkan::command_queue* q, int max_entries) {
 	image_set o{};
 
 	std::ifstream file{images_txt_path};
@@ -15,6 +16,7 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 
 	std::string str;
 	std::vector<std::string> words{};
+	int line_type = 0;
 	while (true) {
 		std::getline(file, str);
 		if (!file) break;
@@ -25,6 +27,18 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 
 		if (words.empty()) continue;
 		if (words[0].empty() || words[0][0] == '#') continue;
+
+		// checking line_type
+
+		// good
+		if (line_type == 0) {
+			line_type++;
+		}
+		// bad
+		else if (line_type == 1) {
+			line_type = 0;
+			continue;
+		}
 
 		image_pose pose{};
 		pose.quaternion = {
@@ -42,13 +56,14 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 		std::string path{images_dir + "/" + words[9]};
 
 		o.images_v.push_back(image::read_image(path, pose, q));
+		if (o.images_v.size() == max_entries) break;
 	}
 
 	return o;
 }
 
 image gsplat::data::image::read_image(std::string& path, const image_pose& pose, gsplat::vulkan::command_queue* q) {
-	image o;
+	image o{};
 	o.queue_v = q;
 	o.pose_v = pose;
 
@@ -87,6 +102,8 @@ image gsplat::data::image::read_image(std::string& path, const image_pose& pose,
 			o.queue_v,
 		}
 	}};
+
+	o.store_vulkan();
 
 	return o;
 }

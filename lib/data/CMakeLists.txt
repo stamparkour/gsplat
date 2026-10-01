@@ -5,6 +5,7 @@ set(PROJECT_SOURCES
 	"src/data.cpp"
 	"src/gaussian.cpp"
 	"src/image.cpp"
+	"src/database.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/data/configure.h"

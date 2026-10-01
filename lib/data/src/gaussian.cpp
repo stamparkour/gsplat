@@ -47,7 +47,7 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 		o.gaussians_v.push_back(gaus);
 	}
 
-	o.buffer_v = array_buffer<gaussian>{buffer_creation_settings{
+	o.buffer1_v = array_buffer<gaussian>{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -59,11 +59,25 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 			o.queue_v,
 		}
 	}};
+	o.buffer2_v = array_buffer<gaussian>{buffer_creation_settings{
+		.usage_transfer_src = true,
+		.usage_transfer_dst = true,
+		.usage_storage_buffer = true,
+		.size = o.gaussians_v.size(),
+		.memory = {
+			device_memory_settings{}
+		},
+		.queues = {
+			o.queue_v,
+		}
+	}};
+	o.store_vulkan(1);
+	o.store_vulkan(2);
 
 	return std::move(o);
 }
 
-void gaussian_set::store_vulkan() {
+void gaussian_set::store_vulkan(int target) {
 	array_buffer<gaussian> buf{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_storage_buffer = true,
@@ -84,10 +98,15 @@ void gaussian_set::store_vulkan() {
 		std::copy(gaussians_v.begin(), gaussians_v.end(), l.begin());
 	}
 
-	buffer_v.transfer(&buf);
+	if (target == 1) {
+		buffer1_v.transfer(&buf);
+	}
+	else if (target == 2) {
+		buffer1_v.transfer(&buf);
+	}
 }
 
-void gaussian_set::fetch_vulkan() {
+void gaussian_set::fetch_vulkan(int target) {
 	array_buffer<gaussian> buf{buffer_creation_settings{
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -103,7 +122,12 @@ void gaussian_set::fetch_vulkan() {
 		}
 	}};
 
-	buf.transfer(&buffer_v);
+	if (target == 1) {
+		buf.transfer(&buffer1_v);
+	}
+	else if (target == 2) {
+		buf.transfer(&buffer2_v);
+	}
 
 	{
 		auto l = buf.memory_lock();

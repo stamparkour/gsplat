@@ -85,6 +85,21 @@ namespace gsplat::vulkan {
 		buffer(const buffer_creation_settings&);
 		~buffer();
 
+		buffer(const buffer&) = delete;
+		buffer(buffer&& other) {
+			buffer::operator=(std::move(other));
+		}
+		buffer& operator =(const buffer&) = delete;
+		buffer& operator =(buffer&& other) {
+			this->settings_v = other.settings_v;
+			this->logical_device_v = other.logical_device_v;
+			this->pointer_v = other.pointer_v;
+			other.pointer_v = {};
+			basic_buffer::operator =(std::move(other));
+			other.buffer_v = 0;
+			return *this;
+		}
+
 		// returns RAII lock object
 		// requires buffer to have VK_BUFFER_USAGE_TRANSFER_DST_BIT 
 		// and VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
@@ -138,7 +153,8 @@ namespace gsplat::vulkan {
 		}
 		array_buffer() = default;
 		~array_buffer() = default;
-
+		array_buffer(array_buffer&&) = default;
+		array_buffer& operator =(array_buffer&&) = default;
 
 		// returns RAII lock object
 		// requires buffer to have VK_BUFFER_USAGE_TRANSFER_DST_BIT 

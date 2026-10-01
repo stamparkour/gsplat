@@ -1,6 +1,7 @@
 #include <iostream>
 #include <gsplat/vulkan.h>
 #include <gsplat/core/read_file.h>
+#include <gsplat/data/database.h>
 
 using namespace gsplat::vulkan;
 
@@ -23,6 +24,13 @@ int main(int argc, char** argv) {
 		return score;
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
+	auto my_queue = &my_logical_device->queue_collection().at(0);
+
+	std::string path;
+	if (argc <= 1) path = "I:\\FIT\\MyStuff\\Jason-1_LEO_VBAR_dx10.00_tumble5_ecl_brdf";
+
+	gsplat::data::database db = gsplat::data::database::colmap(path, my_queue);
+
 
 	array_buffer<int> buf2{buffer_creation_settings{
 		.usage_transfer_dst = true,
@@ -32,7 +40,7 @@ int main(int argc, char** argv) {
 			device_memory_settings{}
 		},
 		.queues = {
-			&my_logical_device->queue_collection().at(0),
+			my_queue,
 		}
 	}};
 
@@ -47,7 +55,7 @@ int main(int argc, char** argv) {
 			}
 		},
 		.queues = {
-			&my_logical_device->queue_collection().at(0),
+			my_queue,
 		}
 	}};
 
