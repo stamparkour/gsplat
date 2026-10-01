@@ -32,6 +32,8 @@ namespace gsplat::vulkan {
 
 		void transfer(const basic_buffer* src, std::size_t dst_offset, std::size_t src_offset, std::size_t length);
 		void transfer(const basic_buffer* src);
+
+		void clear();
 	};
 
 	struct buffer_creation_settings {
@@ -122,6 +124,9 @@ namespace gsplat::vulkan {
 			}
 			size_type size() {
 				return buffer()->size();
+			}
+			value_type* data() {
+				return (value_type*)lock.begin();
 			}
 
 			value_type* begin() {

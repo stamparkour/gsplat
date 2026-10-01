@@ -2,12 +2,14 @@
 #include <gsplat/vulkan.h>
 #include <gsplat/core/read_file.h>
 #include <gsplat/data/database.h>
+#include <gsplat/train/shader_store.h>
 
 using namespace gsplat::vulkan;
 
 int main(int argc, char** argv) {
 	std::cout << "Hello World!" << std::endl;
 
+	// init context
 	vulkan_context context{};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
@@ -27,73 +29,16 @@ int main(int argc, char** argv) {
 	auto my_queue = &my_logical_device->queue_collection().at(0);
 
 	std::string path;
-	if (argc <= 1) path = "I:\\FIT\\MyStuff\\Jason-1_LEO_VBAR_dx10.00_tumble5_ecl_brdf";
+	if (argc <= 1) path = "C:\\Users\\Stamp\\Documents\\FIT\\MyStuff\\Jason-1_LEO_VBAR_dx10.00_tumble5_ecl_brdf";
 
+
+	// load database
 	gsplat::data::database db = gsplat::data::database::colmap(path, my_queue);
+	
+	// load shaders
+	gsplat::train::shader_store shaders{std::string{"shaders"}, &db, my_queue};
 
+	shaders.calc_covariance();
 
-	array_buffer<int> buf2{buffer_creation_settings{
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = 500,
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			my_queue,
-		}
-	}};
-
-	array_buffer<int> buf{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_storage_buffer = true,
-		.size = 500,
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			my_queue,
-		}
-	}};
-
-	{
-		auto l = buf.memory_lock();
-		int i = 0;
-		for (auto& v : l) {
-			v = i;
-			i++;
-		}
-		std::cout << "in buffer" << std::endl;
-	}
-
-	buf2.transfer(&buf);
-
-	auto file = gsplat::core::load_entire_file_binary("shaders/my_shader.slang.spv");
-
-	shader my_shader{
-		shader_creation_settings{
-			.file_ptr = file.data(),
-			.file_size = file.size(),
-			.device = my_logical_device.get()
-		}
-	};
-
-	compute_shader_pipeline pipe{
-		compute_shader_pipeline_settings{
-			.storage_buffer_count = 2,
-			.queue = &my_logical_device->queue_collection().at(0),
-			.shader = &my_shader
-		}
-	};
-
-	pipe.bind(0, &buf2);
-	pipe.bind(1, &buf);
-	pipe.invoke_compute(500, 1, 1);
-
-	{
-		auto l = buf.memory_lock();
-	}
+	db.gaussian_set().fetch_vulkan(1);
 }

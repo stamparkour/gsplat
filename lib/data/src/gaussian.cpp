@@ -40,14 +40,14 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 		float g = std::stof(words[5]);
 		float b = std::stof(words[6]);
 		gaus.mean = {px,py,pz,0};
-		gaus.quaternion = {1, 0, 0, 0};
+		gaus.quaternion = {0, 0, 0, 1};
 		gaus.scale = {default_scale, default_scale, default_scale, 0};
 		gaus.color.color = {r,g,b, default_opacity};
 
 		o.gaussians_v.push_back(gaus);
 	}
 
-	o.buffer1_v = array_buffer<gaussian>{buffer_creation_settings{
+	o.buffers_v[0] = array_buffer<gaussian>{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -59,7 +59,7 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 			o.queue_v,
 		}
 	}};
-	o.buffer2_v = array_buffer<gaussian>{buffer_creation_settings{
+	o.buffers_v[1] = array_buffer<gaussian>{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -98,12 +98,7 @@ void gaussian_set::store_vulkan(int target) {
 		std::copy(gaussians_v.begin(), gaussians_v.end(), l.begin());
 	}
 
-	if (target == 1) {
-		buffer1_v.transfer(&buf);
-	}
-	else if (target == 2) {
-		buffer1_v.transfer(&buf);
-	}
+	buffer1_vulkan().transfer(&buf);
 }
 
 void gaussian_set::fetch_vulkan(int target) {
@@ -122,12 +117,7 @@ void gaussian_set::fetch_vulkan(int target) {
 		}
 	}};
 
-	if (target == 1) {
-		buf.transfer(&buffer1_v);
-	}
-	else if (target == 2) {
-		buf.transfer(&buffer2_v);
-	}
+	buf.transfer(&this->buffer1_vulkan());
 
 	{
 		auto l = buf.memory_lock();

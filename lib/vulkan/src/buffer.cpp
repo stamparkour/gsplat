@@ -66,6 +66,36 @@ void gsplat::vulkan::basic_buffer::transfer(const basic_buffer* src, std::size_t
 void gsplat::vulkan::basic_buffer::transfer(const basic_buffer* src) {
 	transfer(src, 0, 0, size());
 }
+void gsplat::vulkan::basic_buffer::clear() {
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = pool_handle();
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device_handle(), &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	vkCmdFillBuffer(commandBuffer, buffer_handle(), 0, VK_WHOLE_SIZE, 0);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(queue_handle(), 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue_handle());
+
+	vkFreeCommandBuffers(device_handle(), pool_handle(), 1, &commandBuffer);
+}
 
 VkBufferUsageFlags gsplat::vulkan::buffer_creation_settings::to_usage_flags() const {
 	VkBufferUsageFlags o{};

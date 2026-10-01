@@ -10,6 +10,7 @@ set(GLSL_SOURCES
 set(SLANG_COMPUTE_SOURCES
     "src/my_shader.slang"
     "src/calc_covariance.slang"
+    "src/apply_gradient.slang"
 )
 
 # 3. Loop through the list to create individual custom commands
