@@ -6,13 +6,15 @@ set(PROJECT_SOURCES
 	"src/vulkan_context.cpp"
 	"src/physical_device.cpp"
 	"src/validation_layers.h"
+	"src/buffer.cpp"
+	"src/shader.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
 	"include/gsplat/vulkan/config.h"
 	"include/gsplat/vulkan/vulkan_context.h"
 	"include/gsplat/vulkan/buffer.h"
-	"include/gsplat/vulkan/compute_shader.h"
+	"include/gsplat/vulkan/shader.h"
 	"include/gsplat/vulkan/image.h"
 	"include/gsplat/vulkan/vulkan_include.h"
 	"include/gsplat/vulkan/device.h"

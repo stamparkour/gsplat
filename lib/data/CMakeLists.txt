@@ -3,6 +3,9 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/data.cpp"
+	"src/gaussian.cpp"
+	"src/image.cpp"
+	"src/database.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/data/configure.h"
@@ -11,6 +14,8 @@ set(PROJECT_HEADERS
 	"include/gsplat/data/gaussian_color.h"
 	"include/gsplat/data/image.h"
 	"include/gsplat/data.h"
+	"include/gsplat/data/database.h"
+	"include/gsplat/data/image_set.h"
 )
 
 # add the library
@@ -31,9 +36,6 @@ target_link_libraries(gsplat_data PUBLIC glm::glm)
 
 include(eigen)
 target_link_libraries(gsplat_data PUBLIC Eigen3::Eigen)
-
-include(opencv)
-target_link_libraries(gsplat_data PUBLIC ${OpenCV_LIBS})
 
 # include(colmap)
 # target_link_libraries(gsplat_data PUBLIC colmap::colmap)

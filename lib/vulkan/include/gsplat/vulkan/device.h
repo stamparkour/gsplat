@@ -9,9 +9,14 @@
 #include <list>
 
 namespace gsplat::vulkan {
+	constexpr std::size_t device_memory_alignment = 256;
+	constexpr std::size_t device_memory_min_creation_size = 0x100000 * 16; // 16MB
+
+	class device_memory_collection;
 	class logical_device;
 	class physical_device;
 	class command_queue;
+	class device_memory;
 	using logical_device_shared = std::shared_ptr<logical_device>;
 	using logical_device_weak = std::weak_ptr<logical_device>;
 	using physical_device_shared = std::shared_ptr<physical_device>;
@@ -21,7 +26,7 @@ namespace gsplat::vulkan {
 		friend class physical_device;
 		friend class logical_device;
 	public:
-		// index, family name
+		// family index, family name
 		using value_type = std::pair<int, VkQueueFamilyProperties>;
 		using reference = value_type&;
 		using const_reference = const value_type&;
@@ -119,12 +124,13 @@ namespace gsplat::vulkan {
 		friend class gsplat::vulkan::physical_device;
 		VkQueue queue_v = nullptr;
 		VkInstance instance_v = nullptr;
-		int source_index = 0;
+		int source_queue_family_index = 0;
 		physical_device_weak source_physical_device_v{};
 		logical_device_weak source_logical_device_v{};
+		VkCommandPool pool_v;
 	public:
-		command_queue(VkInstance instance_v, VkQueue queue_v, int source_index, physical_device_shared source_physical_device_v) :
-			instance_v(instance_v), queue_v(queue_v), source_index(source_index), source_physical_device_v(source_physical_device_v) {}
+		command_queue(VkInstance instance_v, VkQueue queue_v, VkCommandPool pool_v, int source_queue_family_index, physical_device_shared source_physical_device_v) :
+			instance_v(instance_v), queue_v(queue_v), pool_v(pool_v), source_queue_family_index(source_queue_family_index), source_physical_device_v(source_physical_device_v) { }
 		command_queue() = default;
 		~command_queue() {}
 
@@ -132,6 +138,8 @@ namespace gsplat::vulkan {
 		logical_device_shared logical_device() const;
 		VkInstance instance_handle() const;
 		VkQueue queue_handle() const;
+		VkCommandPool pool_handle() const;
+		int queue_family() const;
 	};
 	class command_queue_collection {
 	public:
@@ -161,12 +169,6 @@ namespace gsplat::vulkan {
 
 		reference at(std::size_t);
 		const_reference at(std::size_t) const;
-
-		//invokes int=ScoreFunc(const command_queue&)
-		//sort based off higher score
-		//removes if score is <0
-		template<typename ScoreFunc>
-		command_queue_collection sort(ScoreFunc&&);
 	};
 
 
@@ -174,11 +176,12 @@ namespace gsplat::vulkan {
 		bool memory_host_visible;
 		bool memory_host_coherent;
 		bool memory_device_local;
+		int type_bitmask; // 0 -> all good
 
-		bool is_valid(const VkMemoryType&) const;
-		// bool is_valid(const VkMemoryHeap&) const;
+		bool is_valid(const VkMemoryType*, int type_index, const VkMemoryHeap*) const;
 	};
-	class memory_manager {
+	class device_memory {
+		friend class gsplat::vulkan::device_memory_collection;
 		struct span_desc_t {
 			bool in_use;
 			std::size_t start;
@@ -187,36 +190,88 @@ namespace gsplat::vulkan {
 	public:
 		struct vulkan_ptr {
 			std::list<span_desc_t>::iterator ptr;
-			std::weak_ptr<memory_manager> device_memory_v;
-			logical_device* device_v;
+			device_memory* device_memory_v;
+
+			bool operator ==(nullptr_t) const;
 		};
 		using pointer = vulkan_ptr;
 	private:
 		std::size_t heap_size = 0;
+		std::size_t heap_free_size = 0;
 		VkDeviceMemory memory_v = nullptr;
 		VkMemoryType type_v{};
+		int source_type_index;
 		VkMemoryHeap heap_v{};
+		device_memory_settings creation_settings;
 		logical_device* device_v = nullptr;
 		std::list<span_desc_t> spans_v{};
 	public:
-		memory_manager() = default;
-		memory_manager(logical_device* device_v, std::size_t size, const device_memory_settings&);
-		~memory_manager();
+		device_memory() = default;
+		device_memory(logical_device* device_v, std::size_t size, const std::vector<device_memory_settings>& ordered_settings);
+		~device_memory();
 
 		pointer aligned_malloc(std::size_t alignment, std::size_t size);
+		pointer malloc(std::size_t size);
 		void free(pointer);
+
+		static bool is_valid_ptr(pointer);
+		static device_memory* get_memory_ptr(pointer);
+		std::size_t size() const;
+		logical_device* device() const;
+
+		bool is_valid(const device_memory_settings& settings) const;
+
+		VkDeviceMemory memory_handle() const;
+		const VkMemoryType& type_vulkan() const;
+		const VkMemoryHeap& heap_vulkan() const;
+	};
+
+	class device_memory_collection {
+		struct find_iterator_t;
+	public:
+		using pointer = device_memory::pointer;
+		using iterator = std::vector<std::unique_ptr<device_memory>>::iterator;
+		using const_iterator = std::vector<std::unique_ptr<device_memory>>::const_iterator;
+		using find_iterator = find_iterator_t;
+	private:
+		struct find_iterator_t {
+			const_iterator it;
+			const_iterator end;
+			device_memory_settings settings;
+
+			find_iterator_t& operator ++();
+			find_iterator_t operator ++(int);
+			const std::unique_ptr<device_memory>* operator ->();
+			const std::unique_ptr<device_memory>& operator *();
+			bool operator ==(const const_iterator& other) const;
+			bool operator !=(const const_iterator& other) const;
+		};
+		// greatest heap size to smallest heap size
+		std::vector<std::unique_ptr<device_memory>> memory_v;
+		logical_device* logical_device_v = nullptr;
+	public:
+		device_memory_collection() = default;
+		device_memory_collection(logical_device* logical_device_v); //  : logical_device_v(logical_device_v) {}
+
+		device_memory* create(std::size_t size, const std::vector<device_memory_settings>& ordered_settings = {});
+		// TODO: should sort based on remaining size. and request for a specific size available.
+		pointer aligned_malloc(std::size_t alignment, std::size_t size, const device_memory_settings& = {});
+		pointer malloc(std::size_t size, const device_memory_settings& = {});
+		void free(pointer ptr);
+
+		const_iterator begin() const;
+		const_iterator end() const;
+		find_iterator find(const device_memory_settings&) const;
 	};
 
 	class logical_device : public std::enable_shared_from_this<logical_device>{
 		friend class gsplat::vulkan::physical_device;
-	public:
-		using pointer = memory_manager::pointer;
 	private:
 		VkDevice device_v;
 		VkInstance instance_ref_v;
 		physical_device_weak physical_device_v;
 		command_queue_collection queues_v;
-		std::vector<memory_manager> memory_v;
+		device_memory_collection memory_v;
 	public:
 		logical_device() = default;
 		logical_device(
@@ -227,7 +282,8 @@ namespace gsplat::vulkan {
 			instance_ref_v(a),
 			device_v(b),
 			physical_device_v(c),
-			queues_v(d) {}
+			queues_v(d),
+			memory_v(this) {}
 
 		~logical_device();
 
@@ -241,11 +297,8 @@ namespace gsplat::vulkan {
 		physical_device_shared physical_device();
 		command_queue_collection& queue_collection();
 		const command_queue_collection& queue_collection() const;
-		
-		pointer aligned_malloc(std::size_t alignment, std::size_t size, const device_memory_settings&);
-		// assumes 16 byte alignment
-		pointer malloc(std::size_t size, const device_memory_settings&);
-		void free(pointer);
+		device_memory_collection& memory_collection();
+		const device_memory_collection& memory_collection() const;
 	};
 }
 

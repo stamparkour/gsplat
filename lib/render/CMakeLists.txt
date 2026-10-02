@@ -30,6 +30,3 @@ target_link_libraries(gsplat_render PUBLIC Vulkan::Vulkan)
 
 include(imgui)
 target_link_libraries(gsplat_render PUBLIC imgui)
-
-include(opencv)
-target_link_libraries(gsplat_render PUBLIC ${OpenCV_LIBS})

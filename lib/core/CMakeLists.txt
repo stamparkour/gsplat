@@ -3,9 +3,12 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/core.cpp"
+	"src/stb_image.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/gsplat_config.h.in"
+	"include/gsplat/core/word_iterable.h"
+	"include/gsplat/core/read_file.h"
 	"include/gsplat/core.h"
 )
 

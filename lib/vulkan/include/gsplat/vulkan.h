@@ -3,7 +3,8 @@
 
 #include<gsplat/vulkan/buffer.h>
 #include<gsplat/vulkan/image.h>
-#include<gsplat/vulkan/compute_shader.h>
+#include<gsplat/vulkan/shader.h>
 #include<gsplat/vulkan/vulkan_context.h>
+#include<gsplat/vulkan/device.h>
 
 #endif // GSPLAT_VULKAN_H

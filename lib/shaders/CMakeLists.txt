@@ -9,6 +9,8 @@ set(GLSL_SOURCES
 )
 set(SLANG_COMPUTE_SOURCES
     "src/my_shader.slang"
+    "src/calc_covariance.slang"
+    "src/apply_gradient.slang"
 )
 
 # 3. Loop through the list to create individual custom commands
@@ -27,7 +29,7 @@ foreach(SRC_FILE ${GLSL_SOURCES})
     # Create the custom rule for this specific file
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND Vulkan::glslangValidator -V "${ABS_SRC_FILE}" -o "${SPV_FILE}"
+        COMMAND Vulkan::glslangValidator -V "${ABS_SRC_FILE}" -o "${SPV_FILE}"  --target-env vulkan1.1
         DEPENDS "${ABS_SRC_FILE}"
         COMMENT "Compiling ${FILE_NAME} to SPIR-V..."
     )
@@ -49,7 +51,7 @@ foreach(SRC_FILE ${SLANG_COMPUTE_SOURCES})
     # Create the custom rule for this specific file
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
+        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -I "${CMAKE_CURRENT_SOURCE_DIR}/src/" -profile spirv_1_1 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
         DEPENDS "${ABS_SRC_FILE}"
         COMMENT "Compiling ${FILE_NAME} to SPIR-V..."
     )
