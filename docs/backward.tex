@@ -1,0 +1,223 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{amsmath,amssymb,booktabs}
+\usepackage{algorithm,algpseudocode,float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.1em}{0.4em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+\AtBeginDocument{\setlength{\abovedisplayskip}{5pt}\setlength{\belowdisplayskip}{5pt}\setlength{\abovedisplayshortskip}{3pt}\setlength{\belowdisplayshortskip}{3pt}}
+
+\newcommand{\T}{^{\top}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\sgn}{\operatorname{sign}}
+\newcommand{\lbl}[1]{\textbf{#1}\quad}
+\newcommand{\words}[1]{\textit{In words:} #1\par}
+
+\begin{document}
+
+\begin{center}
+{\Large\bfseries Backward Pass for 3DGS Training}\\[0.3em]
+first version: L1 loss, fixed number of gaussians, one color per gaussian (SH degree 0)\\ \today
+\end{center}
+
+\section*{The idea}
+
+Training repeats three steps. The \emph{forward} pass renders the gaussians into an image. The \emph{loss} $L$ measures how far that image is from the real photo. The \emph{backward} pass, this document, works out how much each gaussian's numbers should change to shrink the loss. Then every number takes a small step:
+\[
+x \gets x - \text{lr}\cdot\bar x
+\]
+where lr is the \emph{learning rate}, a small number like 0.01 that sets how big each step is.
+
+
+$\bar x$ (``$x$ bar'') is the gradient $\partial L/\partial x$: how much the loss changes when $x$ is nudged. It always has the same shape as $x$. Every formula below is the chain rule applied one step at a time, like a relay. Each section takes the gradient the previous one hands it and passes a new one along, from the pixel colors back to the five numbers we train.
+
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\S & gives the gradient of & starts from & runs in \\
+\midrule
+1 & color $c_i$, coverage $\alpha_i$ & $\bar C$ & raster \\
+2 & opacity $o_i$, falloff $G_i$ & $\bar\alpha_i$ & raster, last step in project \\
+3 & screen center $m$, screen shape $\Sigma'$ & $\bar G_i$ & raster, last step in project \\
+4 & 3D shape $\Sigma$, camera-space position $t$ & $\bar\Sigma'$ & project \\
+5 & position $\mu$ & $\bar m$, $\bar t$ & project \\
+6 & rotation $q$, size $\ell$ & $\bar\Sigma$ & project \\
+7 & color coefficient $k$ & $\bar c$ & project \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\lbl{The forward pass} first per gaussian, then per pixel $p$. The backward undoes exactly these steps.
+\begin{align*}
+t &= W\mu + \tau & \Sigma &= R\,\diag(s^2)R\T,\quad s = e^{\ell},\ R = R(q/|q|) \\
+m &= \bigl(f_x t_x/t_z + c_x,\ f_y t_y/t_z + c_y\bigr) & \Sigma' &= J W \Sigma W\T J\T + 0.3I,\quad Q = \Sigma'^{-1} \\
+G_i &= \exp\bigl(-\tfrac12 d\T Q d\bigr),\ d = p - m & \alpha_i &= \min(0.99,\ \rho_i G_i),\quad \rho_i = \sigma(o_i) \\
+c_i &= \max(0,\ C_0 k_i + 0.5) & C &= \textstyle\sum_{i=1}^{N} c_i \alpha_i T_i + T_{N+1} b,\quad T_i = \prod_{j<i}(1-\alpha_j)
+\end{align*}
+
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{\qquad}ll@{}}
+\toprule
+symbol & meaning & symbol & meaning \\
+\midrule
+$\mu$ & 3D position in the world & $m$ & center on screen, in pixels \\
+$q$ & rotation (quaternion) & $\Sigma$, $\Sigma'$ & 3D shape, its 2D shape on screen \\
+$\ell$, $s$ & size per axis, $\ell = \log s$ keeps $s > 0$ & $Q$ & inverse of $\Sigma'$ \\
+$o$, $\rho$ & opacity, raw and squashed into 0..1 & $G_i$ & strength of gaussian $i$ at $p$ (1 at center) \\
+$k$, $c$ & color, stored coefficient and actual RGB & $\alpha_i$ & how much of pixel $p$ it covers \\
+$t$ & position seen from the camera ($t_z$ = depth) & $T_i$ & light still getting through to $i$ \\
+$W$, $\tau$ & camera rotation and translation & $C$, $C^*$ & our pixel, the photo's pixel \\
+$f_x$, $c_x$ & focal length, image center (pixels) & $b$ & background color \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\lbl{Two kinds of values} \emph{Per pixel} values like $\alpha_i$ and $G_i$ are different at every pixel, so use them right away and never store them. \emph{Per gaussian} values like $\bar c_i$ get added into by many pixels at once, so use an \emph{atomic add} (a GPU add that doesn't lose updates when threads collide).
+
+\lbl{Small rules} For symmetric matrices ($Q$, $\Sigma'$, $\Sigma$), store only the unique entries and copy them as is, with no doubling. Indices start at 0, so $D_{02}$ is row 0, column 2. If the code stores plain size $s$ instead of $\ell$, use $\bar s = \bar\ell / s$. Plain opacity $\rho$ uses $\bar\rho$ (\S2), and plain RGB uses $\bar c$ (\S1).
+
+% --------------------------------------------------------------------
+\section{Blending \texorpdfstring{$\to$}{->} gradients of color $c_i$ and coverage $\alpha_i$}
+
+\words{the forward stacks gaussians front to back like sheets of tinted glass. To undo it, walk the same list back to front. $S_i$ is the color of everything behind gaussian $i$, background included, and $T_i$ is recovered one step at a time.}
+\begin{align*}
+S_N &= b, & S_{i-1} &= \alpha_i c_i + (1-\alpha_i) S_i, & T_i &= T_{i+1}/(1-\alpha_i),\quad T_{N+1} = T_{\text{final}}
+\end{align*}
+\begin{align*}
+\bar c_i &= \alpha_i T_i\, \bar C && \text{per gaussian} \\
+\bar\alpha_i &= T_i\, (c_i - S_i)\cdot \bar C && \text{per pixel} \\
+\bar C &= \sgn(C - C^*)/(3HW) && \text{L1 loss: $+1$ if too bright, $-1$ if too dark}
+\end{align*}
+Making $i$ more opaque swaps some of what's behind it for its own color, weighted by how visible $i$ is. The backward must visit exactly the gaussians the forward used. The forward skips faint ones (under 1/255) and stops once a pixel is nearly opaque, so it saves two numbers per pixel: $T_{\text{final}}$, and $N$, how far down the list it got.
+
+% --------------------------------------------------------------------
+\section{Opacity \texorpdfstring{$\to$}{->} gradient of opacity $o_i$}
+
+\words{coverage is opacity times falloff, so its gradient splits between the two. The opacity part adds up over every pixel, and the squashing function's slope $\rho(1-\rho)$ is applied once at the end.}
+\begin{align*}
+\bar G_i &= \rho_i\, \bar\alpha_i && \text{per pixel} \\
+\bar\rho_i &= \textstyle\sum_p G_i\, \bar\alpha_i && \text{per gaussian} \\
+\bar o_i &= \rho_i (1-\rho_i)\, \bar\rho_i && \text{once per gaussian, after all pixels}
+\end{align*}
+If $\alpha$ hit the 0.99 cap, pass the gradient through anyway, like the original 3DGS code. The ``skip if under 1/255'' test must be written exactly like the forward's, or the two walk different lists.
+
+% --------------------------------------------------------------------
+\section{Screen gaussian \texorpdfstring{$\to$}{->} gradients of center $m$ and shape \texorpdfstring{$\Sigma'$}{Sigma'}}
+
+\words{$G$ is a bell curve on screen, centered at $m$ with shape $Q$. Moving the center or reshaping the bell changes $G$ at every pixel, and those changes add up per gaussian. The last line converts the gradient for $Q$ into one for $\Sigma'$, using the rule for differentiating a matrix inverse.}
+
+With $w = G_i\, \bar G_i$ per pixel:
+\begin{align*}
+\bar m &= \textstyle\sum_p w\, Q d && \text{per gaussian} \\
+\bar Q &= \textstyle\sum_p -\tfrac12 w\, d d\T && \text{per gaussian, 3 stored values} \\
+\bar\Sigma' &= -Q \bar Q Q && \text{once per gaussian, from } dQ = -Q\, d\Sigma'\, Q
+\end{align*}
+$d$ and $\bar m$ are in pixels, so the forward has to compute $m$ in pixels too.
+
+% --------------------------------------------------------------------
+\section{Projection \texorpdfstring{$\to$}{->} gradients of 3D shape \texorpdfstring{$\Sigma$}{Sigma} and position \texorpdfstring{$t$}{t}}
+
+\words{this is the step that flattens the 3D shape onto the screen. $W$ turns it to face the camera, and $J$ is how perspective locally stretches things (farther away looks smaller). $J$ depends on where the gaussian sits, so $t$ gets a gradient here too.}
+\[
+J = \begin{bmatrix} f_x/t_z & 0 & -f_x t'_x/t_z^2 \\ 0 & f_y/t_z & -f_y t'_y/t_z^2 \end{bmatrix},\qquad
+t'_x = t_z \operatorname{clamp}\!\left(\tfrac{t_x}{t_z}, \pm 1.3\tan\tfrac{\text{fov}_x}{2}\right),\qquad M = JW
+\]
+With $V = \bar\Sigma'$, and $k_x = 1$ if $t_x$ is inside the clamp, else $0$ (same for $y$):
+\begin{align*}
+\bar\Sigma &= M\T V M \\
+D = \bar J &= 2\, V J\, (W\Sigma W\T) \\
+\bar t_x &= -\frac{f_x}{t_z^2} D_{02}\, k_x \\
+\bar t_y &= -\frac{f_y}{t_z^2} D_{12}\, k_y \\
+\bar t_z &= -\frac{f_x}{t_z^2} D_{00} - \frac{f_y}{t_z^2} D_{11} + (1+k_x)\frac{f_x t'_x}{t_z^3} D_{02} + (1+k_y)\frac{f_y t'_y}{t_z^3} D_{12}
+\end{align*}
+The clamp keeps $J$ from blowing up for gaussians far off to the side, and $k_x$ switches that piece of the gradient off while it's active. The 2 in $D$ is there because $M$ appears twice in $M\Sigma M\T$.
+
+% --------------------------------------------------------------------
+\section{Screen center \texorpdfstring{$\to$}{->} gradient of position \texorpdfstring{$\mu$}{mu}}
+
+\words{where the gaussian lands on screen depends on its position. Add that to $\bar t$ from \S4, then turn it back from camera view to world view. Undoing a rotation is its transpose.}
+\begin{align*}
+\bar t_x &\mathrel{+}= \frac{f_x}{t_z}\,\bar m_x && \text{added to \S4's } \bar t \\
+\bar t_y &\mathrel{+}= \frac{f_y}{t_z}\,\bar m_y \\
+\bar t_z &\mathrel{+}= -\frac{f_x t_x \bar m_x + f_y t_y \bar m_y}{t_z^2} \\
+\bar\mu &= W\T \bar t
+\end{align*}
+This uses the real $t_x, t_y$, not the clamped ones from \S4.
+
+% --------------------------------------------------------------------
+\section{Shape \texorpdfstring{$\to$}{->} gradients of rotation $q$ and size \texorpdfstring{$\ell$}{l}}
+
+\words{the 3D shape is built from a rotation and a size per axis. Each axis's size only cares about the gradient along that axis: $R\T U R$ is the gradient seen from the gaussian's own axes. The entries of $R$ are simple products of $w, x, y, z$, and the four $\hat q$ lines are their derivatives collected. The last line accounts for $q$ being normalized: stretching $q$ doesn't change the rotation, so that direction is removed.}
+
+With $U = \bar\Sigma$, $\hat q = q/|q| = (w, x, y, z)$, and $\Gamma = \bar R = 2\, U R \diag(s^2)$:
+\begin{align*}
+\bar\ell_k &= 2 s_k^2\, (R\T U R)_{kk} \\
+\bar{\hat q}_w &= 2\bigl[z(\Gamma_{10}-\Gamma_{01}) + y(\Gamma_{02}-\Gamma_{20}) + x(\Gamma_{21}-\Gamma_{12})\bigr] \\
+\bar{\hat q}_x &= 2\bigl[y(\Gamma_{01}+\Gamma_{10}) + z(\Gamma_{02}+\Gamma_{20}) + w(\Gamma_{21}-\Gamma_{12})\bigr] - 4x(\Gamma_{11}+\Gamma_{22}) \\
+\bar{\hat q}_y &= 2\bigl[x(\Gamma_{01}+\Gamma_{10}) + w(\Gamma_{02}-\Gamma_{20}) + z(\Gamma_{12}+\Gamma_{21})\bigr] - 4y(\Gamma_{00}+\Gamma_{22}) \\
+\bar{\hat q}_z &= 2\bigl[w(\Gamma_{10}-\Gamma_{01}) + x(\Gamma_{02}+\Gamma_{20}) + y(\Gamma_{12}+\Gamma_{21})\bigr] - 4z(\Gamma_{00}+\Gamma_{11}) \\
+\bar q &= \bigl(\bar{\hat q} - \hat q\,(\hat q\cdot\bar{\hat q})\bigr)/|q|
+\end{align*}
+$w$ is the real part. If the code stores the quaternion as $(x, y, z, w)$, match the letters, not the positions.
+
+% --------------------------------------------------------------------
+\section{Color \texorpdfstring{$\to$}{->} gradient of color coefficient $k_i$}
+
+\words{with SH degree 0 the color is a constant times $k$ plus 0.5, so its gradient is that constant times $\bar c$. Where the color was clamped to 0, nudging $k$ changes nothing, so the gradient there is 0.}
+\[
+\bar k_i = C_0\, \bar c_i, \quad 0 \text{ on channels where } C_0 k_i + 0.5 < 0.
+\]
+Color that changes with viewing angle (SH degrees 1 to 3) comes later.
+
+% --------------------------------------------------------------------
+\section{The two GPU programs}
+
+The raster backward runs first, one thread per pixel, and does the per-pixel parts (\S1 to \S3). The project backward runs after it, one thread per gaussian, and does the rest.
+
+\begin{algorithm}[H]
+\caption{Raster backward, one thread per pixel}
+\begin{algorithmic}[1]
+\State $T \gets T_{\text{final}},\ S \gets b$
+\For{$i$ in the pixel's list, back to front from where the forward stopped}
+  \State recompute $d, G_i, \alpha_i$; \textbf{skip} if $\alpha_i < 1/255$
+  \State $T \gets T/(1-\alpha_i)$
+  \State $\bar c_i \mathrel{+}= \alpha_i T\, \bar C$ \Comment{atomic add}
+  \State $\bar\alpha \gets T\,(c_i - S)\cdot\bar C,\quad S \gets \alpha_i c_i + (1-\alpha_i)S$
+  \State $\bar\rho_i \mathrel{+}= G_i\, \bar\alpha$ \Comment{atomic add}
+  \State $\bar G \gets \rho_i\, \bar\alpha,\quad w \gets G_i\, \bar G$
+  \State $\bar m_i \mathrel{+}= w\, Q_i d,\quad \bar Q_i \mathrel{+}= -\tfrac12 w\, d d\T$ \Comment{atomic add}
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+\vspace{-0.6em}
+{\small $\triangleright$ \emph{atomic add}: thousands of pixel threads add into the same gaussian's sum at the same moment. A plain \texttt{+=} is read, add, write, so two threads can read the same old value and one addition gets lost. An atomic add does all three as one step, so nothing is lost.\par}
+
+\begin{algorithm}[H]
+\caption{Project backward, one thread per gaussian}
+\begin{algorithmic}[1]
+\State $\bar o \gets \rho(1-\rho)\,\bar\rho$ \Comment{\S2}
+\State $\bar\Sigma' \gets -Q\bar Q Q$ \Comment{\S3}
+\State $\bar\Sigma,\ \bar t$ \Comment{\S4}
+\State $\bar t \mathrel{+}= \dots,\quad \bar\mu \gets W\T\bar t$ \Comment{\S5}
+\State $\bar\ell,\ \bar q$ \Comment{\S6}
+\State $\bar k$ \Comment{\S7}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+buffer & one entry per & holds \\
+\midrule
+saved by the forward & pixel & $T_{\text{final}}$, $N$ \\
+raster backward's sums & gaussian & $\bar c$ (3), $\bar\rho$ (1), $\bar m$ (2), $\bar Q$ (3), filled with atomic adds \\
+final gradients & gaussian & $\bar\mu$ (3), $\bar q$ (4), $\bar\ell$ (3), $\bar o$ (1), $\bar k$ (3) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

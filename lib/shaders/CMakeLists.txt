@@ -11,6 +11,10 @@ set(SLANG_COMPUTE_SOURCES
     "src/my_shader.slang"
     "src/calc_covariance.slang"
     "src/apply_gradient.slang"
+    "src/raster_forward.slang"
+    "src/loss_l1.slang"
+    "src/raster_backward.slang"
+    "src/project_backward.slang"
 )
 
 # 3. Loop through the list to create individual custom commands
