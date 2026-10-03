@@ -36,11 +36,31 @@ void computeMain(uint3 threadId: SV_DispatchThreadID) {
     float4x4 cov = buffer_i[index].covariance_inv;
 
 	// E_2^-1 = (W^-1)^T * E^-1 * (W^-1)
-    cov = mul(transpose(settings_buffer[0].camera_transform_inv), mul(cov, settings_buffer[0].camera_transform_inv));
+    cov = mul(mul(
+        transpose(settings_buffer[0].camera_transform_inv), 
+        cov), 
+        settings_buffer[0].camera_transform_inv);
 
     // calculate jacobian
 	// jacobian of the inverse function is equal to the inverse of the jacobian of the function
 	// jacobian of the inverse of projection transform at point pos.
-    float4x4 jacobian_inv = float4x4();
+    
+    float4x4() scale_m = float4x4(
+        pos.w,0,0,0,
+        0,pos.w,0,0,
+        0,0,pos.w,0,
+        0,0,0,pos.w
+    );
+    
+    float4x4 jacobian_inv = mul(settings_buffer[0].camera_projection_inv,scale_m);
 	
+    cov = mul(mul(
+        transpose(jacobian_inv),
+        cov),
+        jacobian_inv);
+
+    buffer_o[index].covariance_inv = float2x2(
+        cov[0][0], cov[0][1],
+        cov[1][0], cov[1][1],
+    );
 }
