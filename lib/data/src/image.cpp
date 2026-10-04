@@ -8,14 +8,55 @@ using namespace gsplat::data;
 using namespace gsplat::vulkan;
 using namespace gsplat::core;
 
-image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, gsplat::vulkan::command_queue* q, int max_entries) {
+struct camera_intrinsics {
+	float fx, fy, cx, cy;
+};
+
+image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, gsplat::vulkan::command_queue* q, int max_entries) {
 	image_set o{};
+
+	std::ifstream file2{cameras_txt_path};
+	std::string str;
+	std::vector<std::string> words{};
+	if (!file2) throw std::runtime_error("failed to open colmap points3d file");
+
+	std::vector<camera_intrinsics> intrinics{};
+
+	while (true) {
+		std::getline(file2, str);
+		if (!file2) break;
+		words.clear();
+		for (const auto& v : word_iterable{str}) {
+			words.push_back(std::string{v});
+		}
+
+		if (words.empty()) continue;
+		if (words[0].empty() || words[0][0] == '#') continue;
+
+		int l = std::stoi(words[0]);
+		if (intrinics.size() <= l) {
+			intrinics.resize((std::size_t)l + 1);
+		}
+
+		if (words[1] == "PINHOLE") {
+			camera_intrinsics c{};
+			c.fx = std::stof(words[4]);
+			c.fy = std::stof(words[5]);
+			c.cx = std::stof(words[6]);
+			c.cy = std::stof(words[7]);
+		}
+		else if (words[1] == "SIMPLE_PINHOLE") {
+			camera_intrinsics c{};
+			c.fx = std::stof(words[4]);
+			c.fy = c.fx;
+			c.cx = std::stof(words[5]);
+			c.cy = std::stof(words[6]);
+		}
+	}
 
 	std::ifstream file{images_txt_path};
 	if (!file) throw std::runtime_error("failed to open colmap points3d file");
 
-	std::string str;
-	std::vector<std::string> words{};
 	int line_type = 0;
 	while (true) {
 		std::getline(file, str);
@@ -40,7 +81,13 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 			continue;
 		}
 
+		int camera_id = std::stoi(words[8]);
+
 		image_pose pose{};
+		pose.cx = intrinics[camera_id].cx;
+		pose.cy = intrinics[camera_id].cy;
+		pose.fx = intrinics[camera_id].fx;
+		pose.fy = intrinics[camera_id].fy;
 		pose.quaternion = {
 			std::stof(words[1]),
 			std::stof(words[2]),
@@ -62,7 +109,7 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 	return o;
 }
 
-image gsplat::data::image::read_image(std::string& path, const image_pose& pose, gsplat::vulkan::command_queue* q) {
+image gsplat::data::image::read_image(const std::string& path, const image_pose& pose, gsplat::vulkan::command_queue* q) {
 	image o{};
 	o.queue_v = q;
 	o.pose_v = pose;

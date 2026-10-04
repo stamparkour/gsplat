@@ -18,6 +18,10 @@ namespace gsplat::data {
 	struct image_pose {
 		glm::vec4 position;
 		glm::vec4 quaternion;
+		float fx;
+		float fy;
+		float cx;
+		float cy;
 	};
 
 	// should be standardized to a something like 320x240
@@ -30,7 +34,7 @@ namespace gsplat::data {
 		image_pose pose_v;
 	public:
 		image() = default;
-		static image read_image(std::string& path, const image_pose& pose, gsplat::vulkan::command_queue*);
+		static image read_image(const std::string& path_images, const image_pose& pose, gsplat::vulkan::command_queue*);
 
 		std::size_t width() const { return width_v; }
 		std::size_t height() const { return height_v; }

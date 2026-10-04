@@ -12,7 +12,7 @@ namespace gsplat::data {
 	public:
 		image_set() = default;
 
-		static image_set colmap_txt(const std::string& images_dir, const std::string& images_txt_path, gsplat::vulkan::command_queue*, int max_entries);
+		static image_set colmap_txt(const std::string& image_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, gsplat::vulkan::command_queue*, int max_entries);
 
 		std::vector<image>& data() { return images_v; }
 		const std::vector<image>& data() const { return images_v; }
