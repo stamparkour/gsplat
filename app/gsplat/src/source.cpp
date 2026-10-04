@@ -3,6 +3,7 @@
 #include <gsplat/core/read_file.h>
 #include <gsplat/data/database.h>
 #include <gsplat/train/shader_store.h>
+#include <gsplat/train.h>
 
 using namespace gsplat::vulkan;
 
@@ -26,19 +27,36 @@ int main(int argc, char** argv) {
 		return score;
 	}).resize(1);
 	auto my_logical_device = my_physical_device->create_logical_device(my_queue_family_collection);
-	auto my_queue = &my_logical_device->queue_collection().at(0);
+	gsplat::vulkan::command_queue* my_queue = &my_logical_device->queue_collection().at(0);
 
 	std::string path;
-	if (argc <= 1) path = "C:\\Users\\Stamp\\Documents\\FIT\\MyStuff\\Jason-1_LEO_VBAR_dx10.00_tumble5_ecl_brdf";
+	if (argc <= 1) path = R"(I:\projects\3DGS\testset)";
 
 
 	// load database
+	std::cout << "loading dataset" << std::endl;
 	gsplat::data::database db = gsplat::data::database::colmap(path, my_queue);
 	
+	glm::vec4 intrinsics{
+		db.image_set().data()[0].pose().fx,
+		db.image_set().data()[0].pose().fy,
+		db.image_set().data()[0].pose().cx,
+		db.image_set().data()[0].pose().cy,
+	};
+
+	std::cout << "loading shaders" << std::endl;
 	// load shaders
 	gsplat::train::shader_store shaders{std::string{"shaders"}, &db, my_queue};
 
-	shaders.calc_covariance();
+	std::cout << "training!" << std::endl;
 
-	db.gaussian_set().fetch_vulkan(1);
+	gsplat::train::train(&shaders, &db, my_queue, gsplat::train::train_settings{
+		.epochs = 300,
+		.images_per_step = 5,            // images whose gradients add up before one apply_gradient
+		.learning_rate = 10.0f,         // plain SGD, so this depends on the scene
+		.near_plane = 0.2f,
+		.background{0, 0, 0, 0},   // rgb, 0..1
+		.intrinsics = intrinsics,   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
+		.export_path = path + "/out/"
+	});
 }

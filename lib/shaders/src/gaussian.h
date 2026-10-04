@@ -21,4 +21,13 @@ struct gaussian_t {
 	gaussian_color_t color;
 };
 
+float4 calc_color(gaussian_color_t c) {
+	return c.color;
+}
+
+float pdf_gaussian(float2x2 cov, float2 pos) {
+	float x = mul(mul(pos, cov), pos);
+	return exp(-x / 2);
+}
+
 #endif // GAUSSIAN_H

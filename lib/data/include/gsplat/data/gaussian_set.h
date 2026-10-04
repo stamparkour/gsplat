@@ -21,15 +21,17 @@ namespace gsplat::data {
 		// does not generate covariance matrix. must be done by another function (compute shader)
 		static gaussian_set colmap_txt(const std::string& path_colmap_points3d_txt, gsplat::vulkan::command_queue*);
 
-		void store_vulkan(int buffer_target = 1);
-		void fetch_vulkan(int buffer_target = 1);
+		void store_vulkan(int buffer_target = 0);
+		void fetch_vulkan(int buffer_target = 0);
 
-		void set_active_buffer(int index = 1) { active_buffer = index; }
+		void set_active_buffer(int index = 0) { active_buffer = index; }
 		void inc_active_buffer() { active_buffer++; }
 
 		std::size_t size() const {
 			return gaussians_v.size();
 		}
+
+		void filter_gaussians();
 
 		std::vector<gaussian>& data() { return gaussians_v; }
 		const std::vector<gaussian>& data() const { return gaussians_v; }

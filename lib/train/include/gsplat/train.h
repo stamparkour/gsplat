@@ -18,6 +18,7 @@ namespace gsplat::train {
 		float near_plane = 0.2f;
 		glm::vec4 background{0, 0, 0, 0};   // rgb, 0..1
 		glm::vec4 intrinsics{0, 0, 0, 0};   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
+		std::string export_path{};
 	};
 
 	// COLMAP pose to the camera the shaders take
@@ -28,6 +29,8 @@ namespace gsplat::train {
 
 	// trains the database's gaussians in place, on the GPU
 	void train(shader_store* shaders, gsplat::data::database* db, gsplat::vulkan::command_queue* q, const train_settings& ts = {});
+
+	void export_png(const std::string& out_path, gsplat::vulkan::array_buffer<glm::vec4>* buf, int width, int height);
 }
 
 #endif // GSPLAT_TRAIN_H

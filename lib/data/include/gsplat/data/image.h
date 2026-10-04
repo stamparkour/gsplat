@@ -26,12 +26,13 @@ namespace gsplat::data {
 
 	// should be standardized to a something like 320x240
 	class image {
-		std::vector<pixel> data_v;
-		std::size_t width_v;
-		std::size_t height_v;
-		gsplat::vulkan::array_buffer<pixel> image_v;
-		gsplat::vulkan::command_queue* queue_v;
-		image_pose pose_v;
+		std::vector<pixel> data_v{};
+		std::size_t width_v{};
+		std::size_t height_v{};
+		gsplat::vulkan::array_buffer<pixel> image_v{};
+		gsplat::vulkan::command_queue* queue_v{};
+		image_pose pose_v{};
+		std::string name_v{};
 	public:
 		image() = default;
 		static image read_image(const std::string& path_images, const image_pose& pose, gsplat::vulkan::command_queue*);
@@ -49,6 +50,7 @@ namespace gsplat::data {
 
 		void store_vulkan();
 		void fetch_vulkan();
+		const std::string& name() { return name_v; }
 	};
 }
 

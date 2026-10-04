@@ -8,6 +8,12 @@ namespace gsplat::data {
 	struct gaussian_color {
 		glm::vec4 color; // r,g,b,a
 		// additional arguments.
+
+		float mag2() {
+			float m = 0;
+			m += glm::dot(color, color);
+			return m;
+		}
 	};
 }
 

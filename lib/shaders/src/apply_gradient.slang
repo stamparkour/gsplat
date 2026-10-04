@@ -21,6 +21,16 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
 
     float l = settings_buffer[0].learning_rate;
 
+    float mag2 = 
+        dot(buffer_gradient[index].quaternion,buffer_gradient[index].quaternion) + 
+        mul(buffer_gradient[index].scale,buffer_gradient[index].scale) + 
+        dot(buffer_gradient[index].mean,buffer_gradient[index].mean) + 
+        dot(buffer_gradient[index].color.color,buffer_gradient[index].color.color);
+
+    if(mag2 > 0.1 * 0.1) {
+        l *= 0.1 * 0.1 / mag2;
+    }
+
     buffer_io[index].quaternion -= buffer_gradient[index].quaternion * l;
     buffer_io[index].scale -= buffer_gradient[index].scale * l;
     buffer_io[index].mean -= buffer_gradient[index].mean * l;

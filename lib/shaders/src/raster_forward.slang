@@ -54,6 +54,7 @@ void computeMain(uint3 threadId : SV_DispatchThreadID)
     }
 
     image_out[index] = float4(C + T * st.background.rgb, 1.0);
+    //image_out[index] = float4(p.x,p.y,0,1);
     pixel_state_t ps;
     ps.T_final = T;
     ps.stop = stop;

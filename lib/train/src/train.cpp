@@ -3,6 +3,9 @@
 #include <iostream>
 #include <numeric>
 #include <stdexcept>
+#include <filesystem>
+#include <stb_image_write.h>
+#include <limits>
 
 using namespace gsplat::train;
 using namespace gsplat::vulkan;
@@ -52,7 +55,8 @@ void gsplat::train::record_epoch_loss(int epoch, float loss) {
 	std::cout << "epoch " << epoch << "  loss " << loss << std::endl;
 }
 
-void gsplat::train::train(shader_store* shaders, database* db, command_queue* q, const train_settings& ts) {
+void gsplat::train::train(shader_store* shaders, database* db, command_queue* q, const train_settings& ts_1) {
+	train_settings ts = ts_1;
 	auto& images = db->image_set().data();
 	if (images.empty()) throw std::runtime_error("train: no images in the database");
 	if (ts.intrinsics.x <= 0 || ts.intrinsics.y <= 0) throw std::runtime_error("train: set train_settings::intrinsics (fx, fy, cx, cy), nothing loads cameras.txt yet");
@@ -94,10 +98,14 @@ void gsplat::train::train(shader_store* shaders, database* db, command_queue* q,
 
 	// gradients is a sum over images_per_step images, so dividing the
 	// learning rate by it steps along their mean
-	const float step_rate = ts.learning_rate / ts.images_per_step;
+	float step_rate = ts.learning_rate / ts.images_per_step;
 
 	// no calc_covariance: project_gaussians builds Sigma from the quaternion and scale
 	int images_in_step = 0;
+
+	float min_loss = std::numeric_limits<float>::infinity();
+	int time_since_last_min_loss = 0;
+
 	for (int epoch = 0; epoch < ts.epochs; epoch++) {
 		float epoch_loss = 0;
 		for (int k = 0; k < (int)images.size(); k++) {
@@ -107,6 +115,7 @@ void gsplat::train::train(shader_store* shaders, database* db, command_queue* q,
 			}
 
 			// forward
+			shaders->calc_covariance();
 			shaders->project_gaussians(&cam.world_to_camera, &cam.intrinsics, &cam.limits, &gaussians_2d);
 			shaders->sort_gaussians(&gaussians_2d, &sorted_index);
 			shaders->raster_forward(k, &background, ts.near_plane, &gaussians_2d, &sorted_index, &image_out, &pixel_states);
@@ -125,9 +134,58 @@ void gsplat::train::train(shader_store* shaders, database* db, command_queue* q,
 
 			if (++images_in_step == ts.images_per_step) {
 				shaders->apply_gradient(step_rate);
+				// db->gaussian_set().filter_gaussians();
+				// std::cout << "gaussian_count: " << db->gaussian_set().data().size() << std::endl;
 				images_in_step = 0;
 			}
 		}
 		record_epoch_loss(epoch, epoch_loss / images.size());
+
+		time_since_last_min_loss++;
+		if (epoch_loss < min_loss) {
+			min_loss = epoch_loss;
+			time_since_last_min_loss = 0;
+		}
+		if (time_since_last_min_loss > 2) {
+			step_rate *= 0.5;
+			std::cout << "learning rate: " << step_rate << std::endl;
+		}
+
+		if (!ts.export_path.empty()) export_png(ts.export_path + "out" + std::to_string(epoch) + ".png", &image_out, db->image_set().data()[images.size()-1].width(), db->image_set().data()[images.size() - 1].height());
+
+	}
+}
+
+void my_write_func(void* context, void* data, int size) {
+	std::ofstream* stream = (std::ofstream*)context;
+	stream->write((const char*)data, size);
+}
+
+void gsplat::train::export_png(const std::string& out_path, gsplat::vulkan::array_buffer<glm::vec4>* buf, int width, int height) {
+	std::vector<unsigned char> vec{};
+	vec.resize(width * height * 4);
+
+	{
+		auto l = buf->memory_lock();
+		int s = buf->size();
+		for (std::size_t i = 0; i < s; i++) {
+			glm::vec4 v = l.data()[i];
+			v.x = std::clamp<float>(v.x, 0, 1);
+			v.y = std::clamp<float>(v.y, 0, 1);
+			v.z = std::clamp<float>(v.z, 0, 1);
+			v.w = std::clamp<float>(v.w, 0, 1);
+			vec[i * 4 + 0] = (unsigned char)(v.x * 255);// R
+			vec[i * 4 + 1] = (unsigned char)(v.y * 255);// G
+			vec[i * 4 + 2] = (unsigned char)(v.z * 255);// B
+			vec[i * 4 + 3] = (unsigned char)(v.w * 255);// A
+		}
+	}
+	std::filesystem::path path = out_path;
+	path.remove_filename();
+	std::filesystem::create_directories(path);
+	//std::ofstream stream{out_path};
+
+	if (!stbi_write_png(out_path.c_str(), width, height, 4, vec.data(), width*4)) {
+		throw std::runtime_error("failed to export image");
 	}
 }

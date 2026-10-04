@@ -3,6 +3,7 @@
 #include <stb_image.h>
 #include <gsplat/core/word_iterable.h>
 #include <fstream>
+#include <filesystem>
 
 using namespace gsplat::data;
 using namespace gsplat::vulkan;
@@ -38,20 +39,20 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 			intrinics.resize((std::size_t)l + 1);
 		}
 
-		if (words[1] == "PINHOLE") {
-			camera_intrinsics c{};
+		camera_intrinsics c{};
+		if (words[1] == "PINHOLE" || words[1] == "RADIAL") {
 			c.fx = std::stof(words[4]);
 			c.fy = std::stof(words[5]);
 			c.cx = std::stof(words[6]);
 			c.cy = std::stof(words[7]);
 		}
-		else if (words[1] == "SIMPLE_PINHOLE") {
-			camera_intrinsics c{};
+		else if (words[1] == "SIMPLE_PINHOLE" || words[1] == "SIMPLE_RADIAL") {
 			c.fx = std::stof(words[4]);
 			c.fy = c.fx;
 			c.cx = std::stof(words[5]);
 			c.cy = std::stof(words[6]);
 		}
+		intrinics[l] = c;
 	}
 
 	std::ifstream file{images_txt_path};
@@ -154,6 +155,9 @@ image gsplat::data::image::read_image(const std::string& path, const image_pose&
 	}};
 
 	o.store_vulkan();
+
+	std::filesystem::path p = path;
+	o.name_v = p.filename().string();
 
 	return o;
 }

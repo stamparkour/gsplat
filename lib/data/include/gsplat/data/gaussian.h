@@ -12,6 +12,15 @@ namespace gsplat::data {
 		glm::vec4 quaternion;
 		glm::vec4 scale; // only uses 3 values
 		gaussian_color color;
+
+		float mag2() {
+			float m = 0;
+			m += glm::dot(mean, mean);
+			m += glm::dot(quaternion, quaternion);
+			m += glm::dot(scale, scale);
+			m += color.mag2();
+			return m;
+		}
 	};
 	// Vulkan aligned
 	struct gaussian2d {
