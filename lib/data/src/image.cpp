@@ -69,6 +69,9 @@ image gsplat::data::image::read_image(std::string& path, const image_pose& pose,
 
 	int width, height, n;
 	unsigned char *data = stbi_load(path.c_str(), &width, &height, &n, 4);
+	if (!data) throw std::runtime_error("failed to load image " + path);
+	o.width_v = width;
+	o.height_v = height;
 	// ... process data if not NULL ...
 	// ... x = width, y = height, n = # 8-bit components per pixel ...
 	// ... replace '0' with '1'..'4' to force that many components per pixel

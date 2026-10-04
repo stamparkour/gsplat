@@ -12,6 +12,6 @@
 # obsidian
 /.obsidian
 # datasets, see tools/get_data.sh
-data/
+/data/
 # python
 __pycache__/

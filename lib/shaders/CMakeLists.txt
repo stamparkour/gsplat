@@ -11,6 +11,8 @@ set(SLANG_COMPUTE_SOURCES
     "src/my_shader.slang"
     "src/calc_covariance.slang"
     "src/apply_gradient.slang"
+    "src/sort_gaussians.slang"
+    "src/project_gaussians.slang"
     "src/raster_forward.slang"
     "src/loss_l1.slang"
     "src/raster_backward.slang"

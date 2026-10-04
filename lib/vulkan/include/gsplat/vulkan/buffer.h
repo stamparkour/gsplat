@@ -67,14 +67,14 @@ namespace gsplat::vulkan {
 	public:
 		struct memory_lock_t {
 			using size_type = std::size_t;
-			buffer* buffer_v;
+			gsplat::vulkan::buffer* buffer_v;
 			void* begin_v;
 			void* end_v;
 
-			memory_lock_t(buffer*);
+			memory_lock_t(gsplat::vulkan::buffer*);
 			~memory_lock_t();
 
-			buffer* buffer() const;
+			gsplat::vulkan::buffer* buffer() const; // qualified types: gcc rejects 'buffer' meaning two things in one class
 			void* begin();
 			void* end();
 		};
@@ -114,7 +114,7 @@ namespace gsplat::vulkan {
 		using value_type = T;
 		struct typed_memory_lock_t {
 			using size_type = std::size_t;
-			buffer::memory_lock_t lock;
+			gsplat::vulkan::buffer::memory_lock_t lock;
 
 			typed_memory_lock_t(array_buffer<T>* b) : lock(b) {}
 			~typed_memory_lock_t() {}
@@ -136,16 +136,16 @@ namespace gsplat::vulkan {
 				return (value_type*)lock.end();
 			}
 			const value_type* begin() const {
-				return (value_type*)lock.begin();
+				return (value_type*)const_cast<decltype(lock)&>(lock).begin();
 			}
 			const value_type* end() const {
-				return (value_type*)lock.end();
+				return (value_type*)const_cast<decltype(lock)&>(lock).end();
 			}
 			const value_type* cbegin() const {
-				return (value_type*)lock.begin();
+				return (value_type*)const_cast<decltype(lock)&>(lock).begin();
 			}
 			const value_type* cend() const {
-				return (value_type*)lock.end();
+				return (value_type*)const_cast<decltype(lock)&>(lock).end();
 			}
 		};
 	protected:

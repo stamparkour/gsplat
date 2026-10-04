@@ -135,7 +135,7 @@ buffer::buffer(const buffer_creation_settings& settings) {
 	}
 	VkMemoryRequirements prop;
 	vkGetBufferMemoryRequirements(this->device_v, this->buffer_v, &prop);
-	std::size_t alignment = std::gcd((std::size_t)prop.alignment, settings.min_alignment);
+	std::size_t alignment = settings.min_alignment ? std::lcm((std::size_t)prop.alignment, settings.min_alignment) : (std::size_t)prop.alignment;
 	device_memory::pointer ptr{};
 	for (auto& v : settings.memory) {
 		auto tmp_settings = v;

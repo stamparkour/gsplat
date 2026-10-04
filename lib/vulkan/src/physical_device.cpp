@@ -58,6 +58,15 @@ logical_device_shared gsplat::vulkan::physical_device::create_logical_device(con
 	createInfo.enabledLayerCount = 0; // static_cast<uint32_t>(validationLayers.size());
 	createInfo.ppEnabledLayerNames = nullptr; // validationLayers.data();
 
+	// raster_backward adds floats atomically
+	VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_float{};
+	atomic_float.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
+	atomic_float.shaderBufferFloat32AtomicAdd = VK_TRUE;
+	const char* device_extensions[] = { VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME };
+	createInfo.pNext = &atomic_float;
+	createInfo.enabledExtensionCount = 1;
+	createInfo.ppEnabledExtensionNames = device_extensions;
+
 	if (vkCreateDevice(device_v, &createInfo, nullptr, &o_device) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create logical device!");
 	}

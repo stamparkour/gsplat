@@ -1,7 +1,8 @@
 """Runs the Slang kernels on a GPU through SlangPy and compares them against
 the numpy reference in check_e2e.py, on the same scene.
 
-Kernels: raster_forward, loss_l1, raster_backward, project_backward.
+Kernels: raster_forward, loss_l1, raster_backward, project_backward
+(including that project_backward adds into its output instead of overwriting).
 project_gaussians isn't finished yet, so its output (2D center in pixels,
 conic, depth) comes from the numpy reference.
 
@@ -190,6 +191,12 @@ def main():
     ok &= compare("dL/dopacity", go[:, 31], acc_ref["s"], 1e-4)
     ok &= bool(np.all(go[7] == 0))
     print(f"  {'culled gaussian is zero':26s} {'ok' if np.all(go[7] == 0) else 'MISMATCH'}")
+
+    # project_backward adds into gradients, so a second run without clearing doubles it
+    K.run("project_backward", n, gaussians=gauss, raster_grads=rgrads, gradients=grad_out,
+          settings_buffer=K.buffer(pset[None], 1))
+    go2 = grad_out.to_numpy().view(np.float32).reshape(n, 32)
+    ok &= compare("second run adds", go2, 2 * go, 1e-6)
 
     print("\nshaders:", "ok" if ok else "FAILED")
     return 0 if ok else 1

@@ -8,7 +8,7 @@
 #include <string>
 
 namespace gsplat::core {
-    std::vector<char> load_entire_file_binary(const std::string& filename) {
+    inline std::vector<char> load_entire_file_binary(const std::string& filename) {
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
 
         if (!file.is_open()) {
