@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
 	std::cout << "Hello World!" << std::endl;
 
 	// init context
-	vulkan_context context{};
+	vulkan_context_old context{};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
 		int score = 0;

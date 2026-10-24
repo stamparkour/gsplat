@@ -6,6 +6,7 @@ set(PROJECT_SOURCES
 	"src/gaussian.cpp"
 	"src/image.cpp"
 	"src/database.cpp"
+	"src/epoch_file.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/data/configure.h"
@@ -16,6 +17,7 @@ set(PROJECT_HEADERS
 	"include/gsplat/data.h"
 	"include/gsplat/data/database.h"
 	"include/gsplat/data/image_set.h"
+	"include/gsplat/data/epoch_file.h"
 )
 
 # add the library
@@ -33,6 +35,9 @@ target_link_libraries(gsplat_data PUBLIC gsplat::core gsplat::vulkan)
 
 include(glm)
 target_link_libraries(gsplat_data PUBLIC glm::glm)
+
+include(cereal)
+target_link_libraries(gsplat_data PUBLIC cereal::cereal)
 
 include(eigen)
 target_link_libraries(gsplat_data PUBLIC Eigen3::Eigen)

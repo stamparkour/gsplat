@@ -6,5 +6,6 @@
 #include<gsplat/vulkan/shader.h>
 #include<gsplat/vulkan/vulkan_context.h>
 #include<gsplat/vulkan/device.h>
+#include<gsplat/vulkan/vulkan2.h>
 
 #endif // GSPLAT_VULKAN_H

@@ -8,6 +8,7 @@ set(PROJECT_SOURCES
 	"src/validation_layers.h"
 	"src/buffer.cpp"
 	"src/shader.cpp"
+	"src/vulkan2.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"
@@ -18,6 +19,7 @@ set(PROJECT_HEADERS
 	"include/gsplat/vulkan/image.h"
 	"include/gsplat/vulkan/vulkan_include.h"
 	"include/gsplat/vulkan/device.h"
+	"include/gsplat/vulkan/vulkan2.h"
 )
 
 # add the library

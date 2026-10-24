@@ -58,7 +58,7 @@ namespace gsplat::vulkan {
 		queue_family_collection sort(ScoreFunc&&) const;
 	};
 	class physical_device : public std::enable_shared_from_this<physical_device> {
-		friend class vulkan_context;
+		friend class vulkan_context_old;
 		
 		
 		VkPhysicalDevice device_v;
@@ -86,7 +86,7 @@ namespace gsplat::vulkan {
 	};
 
 	class physical_device_collection {
-		friend class vulkan_context;
+		friend class vulkan_context_old;
 		std::vector<physical_device_shared> devices_v;
 
 		physical_device_collection(const std::vector<physical_device_shared>& devices_v) : devices_v(devices_v) {};

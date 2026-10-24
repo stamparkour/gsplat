@@ -211,9 +211,9 @@ static VkPhysicalDevice get_default_vulkan_device(VkInstance instance_v) {
 	throw std::runtime_error("no GPU is good for app!");
 }
 
-// vulkan_context implementation
+// vulkan_context_old implementation
 
-vulkan_context::vulkan_context(const vulkan_extension_vector& ext_orig) {
+vulkan_context_old::vulkan_context_old(const vulkan_extension_vector& ext_orig) {
 	vulkan_extension_vector ext{ext_orig};
 	ext.insert(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 	ext.insert(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -231,7 +231,7 @@ vulkan_context::vulkan_context(const vulkan_extension_vector& ext_orig) {
 	debug_messenger_v = create_vulkan_debug_messanger(instance_v, this);
 	device_v = get_default_vulkan_device(instance_v);
 }
-gsplat::vulkan::vulkan_context::~vulkan_context() {
+gsplat::vulkan::vulkan_context_old::~vulkan_context_old() {
 	if (debug_messenger_v) {
 		vkDestroyDebugUtilsMessengerEXT(instance_v, debug_messenger_v, nullptr);
 		debug_messenger_v = nullptr;
@@ -241,10 +241,10 @@ gsplat::vulkan::vulkan_context::~vulkan_context() {
 		instance_v = nullptr;
 	}
 }
-VkInstance vulkan_context::instance_handle() const {
+VkInstance vulkan_context_old::instance_handle() const {
 	return instance_v;
 }
-physical_device_collection vulkan_context::device_collection() const {
+physical_device_collection vulkan_context_old::device_collection() const {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(instance_v, &deviceCount, nullptr);
 	if (deviceCount == 0) {

@@ -48,19 +48,19 @@ namespace gsplat::vulkan {
 	//  struct vulkan_context_creation_settings {
 	// };
 
-	class vulkan_context {
-		static vulkan_context* global_vulkan_v;
+	class vulkan_context_old {
+		static vulkan_context_old* global_vulkan_v;
 		VkInstance instance_v = nullptr;
 		VkPhysicalDevice device_v = nullptr;
 		VkDebugUtilsMessengerEXT debug_messenger_v = nullptr;
 	public:
-		vulkan_context(const vulkan_extension_vector& ext = {});
-		~vulkan_context();
+		vulkan_context_old(const vulkan_extension_vector& ext = {});
+		~vulkan_context_old();
 
-		vulkan_context(const vulkan_context&) = delete;
-		vulkan_context(vulkan_context&&) = delete;
-		vulkan_context& operator =(const vulkan_context&) = delete;
-		vulkan_context& operator =(vulkan_context&&) = delete;
+		vulkan_context_old(const vulkan_context_old&) = delete;
+		vulkan_context_old(vulkan_context_old&&) = delete;
+		vulkan_context_old& operator =(const vulkan_context_old&) = delete;
+		vulkan_context_old& operator =(vulkan_context_old&&) = delete;
 
 		VkInstance instance_handle() const;
 		physical_device_collection device_collection() const;
@@ -68,12 +68,12 @@ namespace gsplat::vulkan {
 		template<typename ScoreFunc>
 		physical_device_collection device_collection_sort(ScoreFunc&&) const;
 
-		// static vulkan_context* global();
+		// static vulkan_context_old* global();
 	};
 }
 
 template <typename ScoreFunc>
-inline gsplat::vulkan::physical_device_collection gsplat::vulkan::vulkan_context::device_collection_sort(ScoreFunc&& func) const {
+inline gsplat::vulkan::physical_device_collection gsplat::vulkan::vulkan_context_old::device_collection_sort(ScoreFunc&& func) const {
     return device_collection().sort<ScoreFunc>(std::forward<ScoreFunc>(func));
 }
 
