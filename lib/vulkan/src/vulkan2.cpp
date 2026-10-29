@@ -14,3 +14,12 @@ VkDevice vulkan_context::device() {
 VkPhysicalDevice vulkan_context::physical_device() {
 	// return 'global' physical device here
 }
+VkInstance vulkan_context::instance() {
+
+}
+VkQueue vulkan_context::queue() {
+
+}
+VkDescriptorPool vulkan_context::descriptor_pool() {
+
+}

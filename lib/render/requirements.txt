@@ -1,0 +1,17 @@
+You may edit/add/remove any file inside the lib/render and lib/train subsystem.
+
+lib/render is dedicated to displaying content to the user
+lib/train is for training the 3DGS.
+
+It is up to you to where you want to place the 'rendering scene' API.
+
+you will recieve at initialization:
+- VkInstance
+- VkPhysicalDevice
+- VkDevice
+- VkQueue
+- VkDescriptorPool
+
+you should get above by 10/31/26. If you need it earlier contact Eli
+
+At runtime you will use your Projection Matrix and Camera Transformation Matrix to the 'rendering scene' API and recieve a VkImage. you will render this VkImage.
