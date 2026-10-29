@@ -19,7 +19,9 @@ set(PROJECT_HEADERS
 	"include/gsplat/vulkan/image.h"
 	"include/gsplat/vulkan/vulkan_include.h"
 	"include/gsplat/vulkan/device.h"
+
 	"include/gsplat/vulkan/vulkan2.h"
+	"include/gsplat/vulkan/memory.h"
 )
 
 # add the library

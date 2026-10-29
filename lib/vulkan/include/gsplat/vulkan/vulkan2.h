@@ -37,6 +37,8 @@ namespace gsplat::vulkan {
 		static VkDevice device();
 		static VkPhysicalDevice physical_device();
 		static VkInstance instance();
+		static int queue_family_index();
+		static int queue_index();
 		static VkQueue queue();
 		static VkDescriptorPool descriptor_pool();
 	};

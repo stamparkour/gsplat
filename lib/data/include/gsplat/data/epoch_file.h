@@ -3,7 +3,7 @@
 
 #include <gsplat/data/configure.h>
 #include <gsplat/data/gaussian_set.h>
-#incldue <filesystem>
+#include <filesystem>
 
 namespace stamp::data {
 	void save_bin(const gaussian_set& set, const std::filesystem::path& path);

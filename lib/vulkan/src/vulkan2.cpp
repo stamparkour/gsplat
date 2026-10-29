@@ -17,6 +17,12 @@ VkPhysicalDevice vulkan_context::physical_device() {
 VkInstance vulkan_context::instance() {
 
 }
+int vulkan_context::queue_family_index() {
+
+}
+int vulkan_context::queue_index() {
+
+}
 VkQueue vulkan_context::queue() {
 
 }
