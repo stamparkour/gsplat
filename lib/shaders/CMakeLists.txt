@@ -19,9 +19,9 @@ set(SLANG_COMPUTE_SOURCES
     "src/project_backward.slang"
 )
 
-# Ensure build/shaders directory exists
+# Ensure shaders directory exists
 add_custom_target(ensure_shaders_dir
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/shaders"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${GSPLAT_OUTPUT_DIRECTORY}/shaders"
     VERBATIM
 )
 add_dependencies(gsplat_vulkan ensure_shaders_dir)
@@ -37,7 +37,7 @@ foreach(SRC_FILE ${GLSL_SOURCES})
     get_filename_component(FILE_NAME "${SRC_FILE}" NAME)
     
     # Define the output path in the build directory (e.g., "build/shaders/triangle.vert.spv")
-    set(SPV_FILE "${CMAKE_BINARY_DIR}/shaders/${FILE_NAME}.spv")
+    set(SPV_FILE "${GSPLAT_OUTPUT_DIRECTORY}/shaders/${FILE_NAME}.spv")
     
     # Create the custom rule for this specific file
     add_custom_command(
@@ -59,7 +59,7 @@ foreach(SRC_FILE ${SLANG_COMPUTE_SOURCES})
     get_filename_component(FILE_NAME "${SRC_FILE}" NAME)
     
     # Define the output path in the build directory (e.g., "build/shaders/triangle.vert.spv")
-    set(SPV_FILE "${CMAKE_BINARY_DIR}/shaders/${FILE_NAME}.spv")
+    set(SPV_FILE "${GSPLAT_OUTPUT_DIRECTORY}/shaders/${FILE_NAME}.spv")
     
     # Create the custom rule for this specific file
     add_custom_command(
