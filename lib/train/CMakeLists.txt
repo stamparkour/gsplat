@@ -4,10 +4,12 @@ include(FetchContent)
 set(PROJECT_SOURCES
 	"src/train.cpp"
 	"src/shader_store.cpp"
+	"src/scene.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/train.h"
 	"include/gsplat/train/shader_store.h"
+	"include/gsplat/train/scene.h"
 )
 
 # add the library
