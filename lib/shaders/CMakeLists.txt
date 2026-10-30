@@ -19,6 +19,13 @@ set(SLANG_COMPUTE_SOURCES
     "src/project_backward.slang"
 )
 
+# Ensure build/shaders directory exists
+add_custom_target(ensure_shaders_dir
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/shaders"
+    VERBATIM
+)
+add_dependencies(gsplat_vulkan ensure_shaders_dir)
+
 # 3. Loop through the list to create individual custom commands
 set(GENERATED_SPV_FILES "")
 
@@ -30,7 +37,7 @@ foreach(SRC_FILE ${GLSL_SOURCES})
     get_filename_component(FILE_NAME "${SRC_FILE}" NAME)
     
     # Define the output path in the build directory (e.g., "build/shaders/triangle.vert.spv")
-    set(SPV_FILE "${GSPLAT_OUTPUT_DIRECTORY}/shaders/${FILE_NAME}.spv")
+    set(SPV_FILE "${CMAKE_BINARY_DIR}/shaders/${FILE_NAME}.spv")
     
     # Create the custom rule for this specific file
     add_custom_command(
@@ -52,12 +59,12 @@ foreach(SRC_FILE ${SLANG_COMPUTE_SOURCES})
     get_filename_component(FILE_NAME "${SRC_FILE}" NAME)
     
     # Define the output path in the build directory (e.g., "build/shaders/triangle.vert.spv")
-    set(SPV_FILE "${GSPLAT_OUTPUT_DIRECTORY}/shaders/${FILE_NAME}.spv")
+    set(SPV_FILE "${CMAKE_BINARY_DIR}/shaders/${FILE_NAME}.spv")
     
     # Create the custom rule for this specific file
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -I "${CMAKE_CURRENT_SOURCE_DIR}/src/" -profile spirv_1_1 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
+        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -I "${CMAKE_CURRENT_SOURCE_DIR}/src/" -profile spirv_1_3 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
         DEPENDS "${ABS_SRC_FILE}"
         COMMENT "Compiling ${FILE_NAME} to SPIR-V..."
     )

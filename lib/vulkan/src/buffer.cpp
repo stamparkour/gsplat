@@ -1,5 +1,6 @@
 #include <gsplat/vulkan/buffer.h>
-#include<vulkan/vulkan.h>
+#include <vulkan/vulkan.h>
+#include <cstdint>
 #include <stdexcept>
 #include <numeric>
 
@@ -125,8 +126,8 @@ buffer::buffer(const buffer_creation_settings& settings) {
 	
 	// TODO: implement multi queue buffer
 	buffer_info.queueFamilyIndexCount = 1;
-	std::vector<std::uint32_t> families{1};
-	families[0] = (std::uint32_t)settings.queues[0]->queue_family();
+	std::vector<uint32_t> families{1};
+	families[0] = (uint32_t)settings.queues[0]->queue_family();
 
 	buffer_info.pQueueFamilyIndices = families.data();
 

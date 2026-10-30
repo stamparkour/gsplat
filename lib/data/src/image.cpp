@@ -63,6 +63,11 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 		std::getline(file, str);
 		if (!file) break;
 		words.clear();
+        // Remove carriage return character if on linux
+        if (str.ends_with('\r')) {
+            str.pop_back();
+        }
+
 		for (const auto& v : word_iterable{str}) {
 			words.push_back(std::string{v});
 		}
