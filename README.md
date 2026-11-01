@@ -35,3 +35,9 @@ To prevent building the app and only configure the library, add `-Dgsplat_BUILD_
 
 To provide your own slang compiler and prevent downloading slang, add `-Dgsplat_SLANG_COMPILER_PATH=<slang path>` to the cmake configure command.
 
+# Contributors
+
+- [Elijah Clark](https://github.com/stamparkour)
+- [Jeremiah Jackson](https://github.com/cjackson2024-cell)
+- [Nicholas Welsh](https://github.com/nickvpn)
+- [Brice Vankregten](https://github.com/bricevankregten)
