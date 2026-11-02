@@ -30,6 +30,9 @@ namespace gsplat::vulkan {
 
 	class vulkan_context {
 		inline static vulkan_context* global_context = nullptr;
+        inline static VkInstance vk_instance;
+        inline static VkPhysicalDevice vk_phys_dev;
+        inline static VkDevice vk_dev;
 	public:
 		vulkan_context(const vulkan_context_config&);
 		~vulkan_context();

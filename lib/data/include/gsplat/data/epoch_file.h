@@ -6,8 +6,8 @@
 #include <filesystem>
 
 namespace stamp::data {
-	void save_bin(const gaussian_set& set, const std::filesystem::path& path);
-	void load_bin(gaussian_set& set, const std::filesystem::path& path);
+	void save_bin(const gsplat::data::gaussian_set& set, const std::filesystem::path& path);
+	void load_bin(gsplat::data::gaussian_set& set, const std::filesystem::path& path);
 }
 
 #endif // GSPLAT_DATA_EPOCH_FILE_H
