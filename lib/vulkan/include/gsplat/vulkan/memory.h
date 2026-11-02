@@ -8,7 +8,7 @@
 // uses cpp coroutine/awaiters
 
 namespace gsplat::vulkan {
-	using gptr_t = void*;
+	using command_buffer = void*;
 
 	struct memory_type {
 		enum : int {
@@ -23,55 +23,40 @@ namespace gsplat::vulkan {
 		};
 	};
 
-	VkCommandBuffer alloc_command_buffer();
-	void free_command_buffer(VkCommandBuffer);
-	gptr_t malloc(std::size_t size, std::size_t align, memory_type);
-	void free(gptr_t);
-	// only for host_visible memory. implicit unmap on free.
-	void* map(gptr_t, std::size_t offset);
-
 
 	template<typename T>
-	class buffer {
+	class vector {
 	public:
 		using value_type = T;
-		using pointer_type = T*;
-		using reference_type = T&;
-		using const_reference_type = T&;
+		using size_type = std::size_t;
+		using pointer = T*;
+		using const_pointer = const T*;
+		using reference = T&;
+		using const_reference = const T&;
 	private:
-		gptr_t raw_ptr;
-		VkBuffer buffer;
-		std::size_t size;
-		memory_type mem_type;
-		buffer_bits buf_bits;
 	public:
-		buffer();
-		buffer(memory_type, buffer_bits);
-		buffer(memory_type, buffer_bits, std::size_t size);
-		buffer(memory_type, buffer_bits, std::size_t size, const_reference_type default_value);
+		vector();
+		vector();
+		vector(size_type size);
+		vector(size_type size, const_reference_type default_value);
 		// copy buffer in different memory type
-		~buffer();
-		// copies entire buffer
-		buffer(const buffer&) = delete;
-		// moves buffer
-		buffer(buffer&&);
-		// copies buffer contents ( replaces current mem_type)
-		buffer& operator =(const buffer&) = delete;
-		// moves buffers contents ( replaces current mem_type)
-		buffer& operator =(buffer&&);
+		~vector();
+		vector(const vector&);
+		vector(vector&&);
+		vector& operator =(const vector&);
+		vector& operator =(vector&&);
 
-		std::size_t size() const;
-		std::size_t max_size() const;
+		size_type size() const;
+		size_type max_size() const;
 		bool empty() const;
-		VkBuffer buffer() const;
-		memory_type type() const;
-		buffer_bits bits() const;
+		auto buffer() const;
 
-		auto await_resize(std::size_t new_size);
-		auto await_transfer(const buffer& src);
+		auto clear();
+		auto resize(command_buffer, size_type new_size);
 
-		pointer_type* map();
-		void unmap();
+		// 
+		auto stream();
+		auto cstream() const;
 	};
 
 	class image2d {
