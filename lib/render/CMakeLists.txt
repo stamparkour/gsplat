@@ -29,4 +29,4 @@ include(vulkan)
 target_link_libraries(gsplat_render PUBLIC Vulkan::Vulkan)
 
 include(imgui)
-target_link_libraries(gsplat_render PUBLIC imgui)
+target_link_libraries(gsplat_render PUBLIC imgui_glfw_vulkan)
