@@ -3,6 +3,7 @@ include(FetchContent)
 #source files
 set(PROJECT_SOURCES
 	"src/test_main.cpp"
+	"src/test_epoch_file.cpp"
 )
 set(PROJECT_HEADERS
 )

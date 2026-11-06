@@ -21,6 +21,13 @@ namespace gsplat::data {
 			m += color.mag2();
 			return m;
 		}
+
+		// cereal reflection: list every member that must be saved/loaded.
+		// If you add a member above, add it here too (and bump the file version).
+		template <class Archive>
+		void serialize(Archive& ar) {
+			ar(covariance_inv, mean, quaternion, scale, color);
+		}
 	};
 	// Vulkan aligned
 	struct gaussian2d {
