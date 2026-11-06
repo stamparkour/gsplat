@@ -4,6 +4,7 @@
 
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
+#include <stamp/task/coroutine.h>
 #include <string>
 
 /*
@@ -44,6 +45,12 @@ namespace gsplat::vulkan {
 		static int queue_index();
 		static VkQueue queue();
 		static VkDescriptorPool descriptor_pool();
+
+		// use stamp::task::co_simple_queue on_destroy_queue
+		// run 'while(on_destroy_queue.pop_all());' in deconstructor to deque everything.
+		static auto co_on_destroy() {
+			return on_destroy_queue.push();
+		}
 	};
 }
 

@@ -9,6 +9,7 @@ set(PROJECT_SOURCES
 	"src/buffer.cpp"
 	"src/shader.cpp"
 	"src/vulkan2.cpp"
+	"src/memory.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/vulkan.h"

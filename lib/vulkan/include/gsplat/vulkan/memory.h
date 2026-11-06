@@ -4,12 +4,37 @@
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
 #include <cstddef>
+#include <string>
 #include <stamp/task/stream.h>
 
 // uses cpp coroutine/awaiters
 
 namespace gsplat::vulkan {
-	using gptr_t = void*;
+	struct gptr_t {
+		void* ptr = nullptr;
+		gptr_t() = default;
+		explicit gptr_t(void* ptr) : ptr(ptr) {}
+		gptr_t(nullptr_t) : gptr_t() {}
+		gptr_t(const gptr_t& other) {
+			ptr = other.ptr;
+		}
+		gptr_t& operator =(nullptr_t) {
+			ptr = nullptr;
+		}
+		gptr_t& operator =(const gptr_t& other) {
+			ptr = other.ptr;
+		}
+
+		operator bool() const {
+			return ptr == nullptr;
+		}
+		auto operator <=>(const gptr_t& other) const {
+			return ptr <=> other.ptr;
+		}
+		bool operator ==(const gptr_t& other) const {
+			return ptr == other.ptr;
+		}
+	};
 	using command_buffer = void*;
 
 	struct memory_type {
@@ -19,15 +44,21 @@ namespace gsplat::vulkan {
 		};
 	};
 
-	gptr_t malloc(std::size_t size, std::size_t align, memory_type);
-	void free(gptr_t);
+	gptr_t alloc_gpu_mem(std::size_t size, std::size_t align, memory_type);
+	void free_gpu_mem(gptr_t);
 
 	template<typename T>
 	class buffer;
 	template<typename T>
 	class buffer_iostream_strand : stamp::task::co_stream_strand {
 	public:
-		buffer_iostream_strand(buffer*);
+		using value_type = T;
+		using reference = T&;
+		using const_reference = const T&;
+	private:
+		buffer<T>* buffer_v;
+	public:
+		buffer_iostream_strand(buffer<T>*);
 		~buffer_iostream_strand();
 	protected:
 		virtual bool do_eof() const;
@@ -45,6 +76,19 @@ namespace gsplat::vulkan {
 		virtual bool do_await_ready();
 		virtual bool do_await_suspend(std::coroutine_handle<> h);
 		virtual std::size_t do_await_resume();
+	public:
+		stamp::task::coroutine<value_type> get_at(std::size_t index) {
+			set_gpos(index * sizeof(value_type));
+			value_type v;
+			co_await this->get_span(&v, sizeof(value_type));
+			co_return v;
+		}
+		stamp::task::coroutine<void> put_at(std::size_t index, const_reference val) {
+			set_ppos(index * sizeof(value_type));
+			value_type v;
+			co_await this->put_span(&v, sizeof(value_type));
+			co_return v;
+		}
 	};
 
 	template<typename T>
@@ -57,17 +101,18 @@ namespace gsplat::vulkan {
 		using reference = T&;
 		using const_reference = const T&;
 	private:
+		VkBuffer buffer_v;
+		gptr_t raw_data_v;
 	public:
-		buffer();
 		buffer();
 		buffer(size_type size);
 		buffer(size_type size, const_reference default_value);
 		// copy buffer in different memory type
 		~buffer();
-		buffer(const buffer&);
-		buffer(buffer&&);
-		buffer& operator =(const buffer&);
-		buffer& operator =(buffer&&);
+		buffer(const buffer<T>&);
+		buffer(buffer<T>&&);
+		buffer<T>& operator =(const buffer<T>&);
+		buffer<T>& operator =(buffer<T>&&);
 
 		size_type size() const;
 		size_type max_size() const;
@@ -75,11 +120,15 @@ namespace gsplat::vulkan {
 		VkBuffer handle() const;
 
 		// awaiter
-		auto clear();
-		// awaiter
-		auto resize(size_type new_size);
+		auto clear() {
 
-		buffer_iostream_strand co_iostream_strand();
+		}
+		// awaiter
+		auto resize(size_type new_size) {
+
+		}
+
+		buffer_iostream_strand<T> co_iostream_strand();
 	};
 
 	using image_storage_t = int;
@@ -99,6 +148,34 @@ namespace gsplat::vulkan {
 		image2d& operator =(image2d&&) = delete;
 
 		VkImage handle();
+	};
+
+	struct compute_shader_config {
+		const std::string& file_name;
+		int storage_buffer_count;
+	};
+
+	class compute_shader {
+		VkDescriptorSetLayout desc_layout_v;
+		VkPipelineLayout pipeline_layout_v;
+		VkShaderModule shader_v;
+		VkPipeline pipeline_v;
+		VkDescriptorSet descriptor_v;
+	public:
+		compute_shader();
+		compute_shader(const compute_shader_config& config);
+		~compute_shader();
+
+		compute_shader(const compute_shader&) = delete;
+		compute_shader(compute_shader&&) = delete;
+		compute_shader& operator =(const compute_shader&) = delete;
+		compute_shader& operator =(compute_shader&&) = delete;
+		
+		template<typename T>
+		void bind(int binding, const buffer<T>&) {
+
+		}
+		void invoke(command_buffer,int x, int y, int z);
 	};
 }
 
