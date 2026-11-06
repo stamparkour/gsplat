@@ -192,11 +192,16 @@ namespace gsplat::vulkan {
 		image2d(std::size_t width, std::size_t height, image_storage_t);
 		~image2d();
 		image2d(const image2d&) = delete;
-		image2d(image2d&&) = delete;
+		image2d(image2d&&) {
+
+		}
 		image2d& operator =(const image2d&) = delete;
-		image2d& operator =(image2d&&) = delete;
+		image2d& operator =(image2d&&) {
+
+		}
 
 		VkImage handle();
+
 	};
 
 	struct compute_shader_config {
@@ -226,7 +231,9 @@ namespace gsplat::vulkan {
 
 		}
 		compute_shader& operator =(const compute_shader&) = delete;
-		compute_shader& operator =(compute_shader&&) = delete;
+		compute_shader& operator =(compute_shader&&) {
+
+		}
 		
 		template<typename T>
 		void bind(int binding, const buffer<T>&) {
