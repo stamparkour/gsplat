@@ -22,6 +22,9 @@ namespace gsplat::train {
 		static vulkan_handles from_context();
 	};
 
+	// GL style view and projection (glm::lookAt, glm::perspective) to the shaders' camera
+	camera camera_from_matrices(const glm::mat4& view, const glm::mat4& projection, int width, int height);
+
 	struct rendered_image {
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view = VK_NULL_HANDLE;
@@ -91,6 +94,7 @@ namespace gsplat::train {
 
 		// waits for the GPU. the image is reused, so it's valid until the next render()
 		rendered_image render(const camera& cam, int width, int height, glm::vec4 background = {0, 0, 0, 0});
+		rendered_image render(const glm::mat4& view, const glm::mat4& projection, int width, int height, glm::vec4 background = {0, 0, 0, 0});
 
 		// the last render, rgba, row major from the top left
 		std::span<const glm::vec4> pixels() const;

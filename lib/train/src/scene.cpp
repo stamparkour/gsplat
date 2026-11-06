@@ -1,6 +1,7 @@
 #include <gsplat/train/scene.h>
 #include <gsplat/vulkan/vulkan2.h>
 #include <gsplat/core/read_file.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -74,6 +75,21 @@ vulkan_handles vulkan_handles::from_context() {
 		.queue = vulkan_context::queue(),
 		.queue_family_index = (std::uint32_t)vulkan_context::queue_family_index(),
 	};
+}
+
+camera gsplat::train::camera_from_matrices(const glm::mat4& view, const glm::mat4& projection, int width, int height) {
+	// GL camera space is OpenCV's with y and z flipped
+	const glm::mat4 gl_to_cv = glm::scale(glm::mat4(1.0f), glm::vec3(1, -1, -1));
+	const glm::mat4& P = projection;
+	const float W = (float)width, H = (float)height;
+	float fx = P[0][0] * 0.5f * W;
+	float fy = P[1][1] * 0.5f * H;
+	float cx = (1.0f - P[2][0]) * 0.5f * W;
+	float cy = (1.0f + P[2][1]) * 0.5f * H;
+	float near_plane = P[3][2] / (P[2][2] - 1.0f);
+	float limx = 1.3f * (0.5f * W) / fx;
+	float limy = 1.3f * (0.5f * H) / fy;
+	return camera{gl_to_cv * view, glm::vec4(fx, fy, cx, cy), glm::vec4(limx, limy, near_plane, 0.0f)};
 }
 
 scene::scene(const vulkan_handles& vk, const std::string& shader_dir) : vk_v(vk) {
@@ -298,6 +314,10 @@ void scene::submit_and_wait() {
 	check(vkQueueSubmit(vk_v.queue, 1, &submit, fence_v), "vkQueueSubmit");
 	check(vkWaitForFences(vk_v.device, 1, &fence_v, VK_TRUE, UINT64_MAX), "vkWaitForFences");
 	check(vkResetFences(vk_v.device, 1, &fence_v), "vkResetFences");
+}
+
+rendered_image scene::render(const glm::mat4& view, const glm::mat4& projection, int width, int height, glm::vec4 background) {
+	return render(camera_from_matrices(view, projection, width, height), width, height, background);
 }
 
 rendered_image scene::render(const camera& cam, int width, int height, glm::vec4 background) {
