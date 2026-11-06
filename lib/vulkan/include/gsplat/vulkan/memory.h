@@ -35,7 +35,44 @@ namespace gsplat::vulkan {
 			return ptr == other.ptr;
 		}
 	};
-	using command_buffer = void*;
+
+	struct vulkan_memory_manager {
+		struct node_t {
+			std::size_t begin;
+			std::size_t end;
+		};
+		std::list<node_t> device_local_allocs{};
+		std::list<node_t> host_visibile_allocs{};
+		bool initialized = false;
+
+
+		vulkan_memory_manager() {
+
+		}
+		vulkan_memory_manager() {
+
+		}
+		void destroy() {
+
+		}
+		void init() {
+			if (initialized) return;
+			initialized = true;
+
+			// can use 'this' pointer because object does not move.
+			[this]() -> stamp::task::coroutine<void> {
+				co_await vulkan_context::co_on_destroy();
+				destroy();
+			}().resume();
+
+		}
+		gptr_t alloc(std::size_t size, std::size_t align, memory_type) {
+			init();
+		}
+		void free(gptr_t ptr) {
+
+		}
+	};
 
 	struct memory_type {
 		enum : int {
@@ -50,7 +87,7 @@ namespace gsplat::vulkan {
 	template<typename T>
 	class buffer;
 	template<typename T>
-	class buffer_iostream_strand : stamp::task::co_stream_strand {
+	class buffer_io_strand : stamp::task::co_stream_strand {
 	public:
 		using value_type = T;
 		using reference = T&;
@@ -77,19 +114,29 @@ namespace gsplat::vulkan {
 		virtual bool do_await_suspend(std::coroutine_handle<> h);
 		virtual std::size_t do_await_resume();
 	public:
-		stamp::task::coroutine<value_type> get_at(std::size_t index) {
+		void go_at(std::size_t index) {
+			set_ppos(index * sizeof(value_type));
 			set_gpos(index * sizeof(value_type));
+		}
+		stamp::task::coroutine<value_type> get_next() {
 			value_type v;
 			co_await this->get_span(&v, sizeof(value_type));
 			co_return v;
 		}
-		stamp::task::coroutine<void> put_at(std::size_t index, const_reference val) {
-			set_ppos(index * sizeof(value_type));
+		stamp::task::coroutine<value_type> set_next(const_reference val) {
 			value_type v;
 			co_await this->put_span(&v, sizeof(value_type));
 			co_return v;
 		}
 	};
+
+	/* // example core for buffer_io_strand
+	stamp::task::coroutine<void> run(buffer_iostream_strand<int>* strand) {
+		strand->go_at(12);
+		int v = co_await strand->get_next();
+		co_await strand->set_next(v+3);
+	}
+	*/
 
 	template<typename T>
 	class buffer {
@@ -128,7 +175,9 @@ namespace gsplat::vulkan {
 
 		}
 
-		buffer_iostream_strand<T> co_iostream_strand();
+		buffer_io_strand<T> co_iostream_strand() {
+			return {this};
+		}
 	};
 
 	using image_storage_t = int;
@@ -162,12 +211,20 @@ namespace gsplat::vulkan {
 		VkPipeline pipeline_v;
 		VkDescriptorSet descriptor_v;
 	public:
-		compute_shader();
-		compute_shader(const compute_shader_config& config);
-		~compute_shader();
+		compute_shader() {
+
+		}
+		compute_shader(const compute_shader_config& config) {
+
+		}
+		~compute_shader() {
+
+		}
 
 		compute_shader(const compute_shader&) = delete;
-		compute_shader(compute_shader&&) = delete;
+		compute_shader(compute_shader&&) {
+
+		}
 		compute_shader& operator =(const compute_shader&) = delete;
 		compute_shader& operator =(compute_shader&&) = delete;
 		
@@ -175,7 +232,9 @@ namespace gsplat::vulkan {
 		void bind(int binding, const buffer<T>&) {
 
 		}
-		void invoke(command_buffer,int x, int y, int z);
+		void invoke(int x, int y, int z) {
+
+		}
 	};
 }
 

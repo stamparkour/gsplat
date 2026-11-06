@@ -46,10 +46,10 @@ namespace gsplat::vulkan {
 		static VkQueue queue();
 		static VkDescriptorPool descriptor_pool();
 
-		// use stamp::task::co_simple_queue on_destroy_queue
-		// run 'while(on_destroy_queue.pop_all());' in deconstructor to deque everything.
+		// use stamp::task::co_simple_stack on_destroy_stack
+		// run 'while(on_destroy_stack.pop_all());' in deconstructor to deque everything.
 		static auto co_on_destroy() {
-			return on_destroy_queue.push();
+			return on_destroy_stack.push();
 		}
 	};
 }
