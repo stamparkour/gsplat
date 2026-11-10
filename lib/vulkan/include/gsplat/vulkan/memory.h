@@ -5,6 +5,7 @@
 #include <gsplat/vulkan/vulkan_include.h>
 #include <cstddef>
 #include <string>
+#include <algorithm>
 #include <stamp/task/stream.h>
 
 // uses cpp coroutine/awaiters
@@ -94,29 +95,122 @@ namespace gsplat::vulkan {
 		using const_reference = const T&;
 	private:
 		buffer<T>* buffer_v;
+		bool eof_v = false;
+		bool fail_v = false;
+		bool bad_v = false;
+		std::size_t pos = 0;
+
+		gptr_t host_mem_v = nullptr;
+		char* map_buffer_v = nullptr;
+		std::size_t buffer_pos = 0;
+		std::size_t buffer_size = 4096;
 	public:
 		buffer_iostream_strand(buffer<T>*);
 		~buffer_iostream_strand();
 	protected:
-		virtual bool do_eof() const;
-		virtual bool do_fail() const;
-		virtual bool do_bad() const;
+		virtual bool do_eof() const {
+			return eof_v;
+		}
+		virtual bool do_fail() const {
+			return fail_v;
+		}
+		virtual bool do_bad() const {
+			return bad_v;
+		}
+		virtual void clear() {
+			eof_v = false;
+			fail_v = false;
+			bad_v = false;
+		}
 
-		virtual std::size_t do_get_ppos() const;
-		virtual void do_set_ppos(std::size_t pos, seekdir);
-		virtual std::size_t do_get_gpos() const;
-		virtual void do_set_gpos(std::size_t pos, seekdir);
+		virtual std::size_t do_get_ppos() const {
+			return pos;
+		}
+		virtual void do_set_ppos(std::size_t pos, seekdir dir) {
+			switch (dir) {
+			case seekdir::beg:
+				this->pos = pos;
+				break;
+			case seekdir::cur:
+				this->pos += pos;
+				break;
+			case seekdir::end:
+				this->pos = pos + buffer_v->raw_size();
+				break;
+			}
+			if (this->pos > buffer_v->raw_size()) {
+				this->pos = buffer_v->raw_size();
+			}
+		}
+		virtual std::size_t do_get_gpos() const {
+			return pos;
+		}
+		virtual void do_set_gpos(std::size_t pos, seekdir) {
+			switch (dir) {
+			case seekdir::beg:
+				this->pos = pos;
+				break;
+			case seekdir::cur:
+				this->pos += pos;
+				break;
+			case seekdir::end:
+				this->pos = pos + buffer_v->raw_size();
+				break;
+			}
+			if (this->pos > buffer_v->raw_size()) {
+				this->pos = buffer_v->raw_size();
+			}
+		}
 
-		virtual std::size_t do_try_put_span(const char* span, std::size_t size);
-		virtual std::size_t do_try_get_span(char* span, std::size_t size);
+		virtual std::size_t do_try_put_span(const char* span, std::size_t size) {
+			eof_v = false;
+			std::ptrdiff_t buf_offset = pos - buffer_pos;
+			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
+			std::ptrdiff_t length = std::min((std::ptrdiff_t)size, buffer_size - buf_offset, buffer_v->raw_size() - pos);
+			stamp::core::s_assert(length+buf_offset <= buffer_size);
 
-		virtual bool do_await_ready();
-		virtual bool do_await_suspend(std::coroutine_handle<> h);
-		virtual std::size_t do_await_resume();
+			std::copy(span, span + length, map_buffer_v + buf_offset);
+			pos += length;
+			if (pos >= buffer_v->raw_size()) {
+				eof_v = true;
+			}
+			return length;
+		}
+		virtual std::size_t do_try_get_span(char* span, std::size_t size) {
+			eof_v = false;
+			std::ptrdiff_t buf_offset = pos - buffer_pos;
+			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
+			std::ptrdiff_t length = std::min((std::ptrdiff_t)size, buffer_size - buf_offset, , buffer_v->raw_size() - pos);
+			stamp::core::s_assert(length + buf_offset <= buffer_size);
+
+			std::copy(map_buffer_v + buf_offset, map_buffer_v + buf_offset + length, span);
+			pos += length;
+			if (pos >= buffer_v->raw_size()) {
+				eof_v = true;
+			}
+			return length;
+		}
+
+		virtual bool do_await_ready() {
+			if (pos < buffer_pos || pos > buffer_pos + buffers_size) {
+				return false;
+			}
+			return true;
+		}
+		virtual bool do_await_suspend(std::coroutine_handle<> h) {
+			std::size_t aligned_pos = (pos / buffer_size) * buffer_size;
+			// TODO: copy current buffer (make sure to cut off at file end)
+			// then copy new range into strand's buffer.
+			buffer_pos = aligned_pos;
+			return false; // resumes coroutine.
+		}
+		virtual bool do_await_resume() {
+			return good();
+		}
 	public:
-		void go_at(std::size_t index) {
+		void set_pos(std::size_t index) {
 			set_ppos(index * sizeof(value_type));
-			set_gpos(index * sizeof(value_type));
+			// set_gpos(index * sizeof(value_type)); // redundent, both set same pos.
 		}
 		stamp::task::coroutine<value_type> get_next() {
 			value_type v;
@@ -161,7 +255,10 @@ namespace gsplat::vulkan {
 		buffer<T>& operator =(const buffer<T>&);
 		buffer<T>& operator =(buffer<T>&&);
 
+		// number of elements
 		size_type size() const;
+		// number of bytes
+		size_type raw_size() const;
 		size_type max_size() const;
 		bool empty() const;
 		VkBuffer handle() const;
