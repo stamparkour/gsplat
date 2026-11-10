@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <string>
 #include <algorithm>
+#include <vector>
 #include <stamp/task/stream.h>
 
 // uses cpp coroutine/awaiters
@@ -85,16 +86,10 @@ namespace gsplat::vulkan {
 	gptr_t alloc_gpu_mem(std::size_t size, std::size_t align, memory_type);
 	void free_gpu_mem(gptr_t);
 
-	template<typename T>
 	class buffer;
-	template<typename T>
 	class buffer_io_strand : stamp::task::co_stream_strand {
-	public:
-		using value_type = T;
-		using reference = T&;
-		using const_reference = const T&;
 	private:
-		buffer<T>* buffer_v;
+		buffer* buffer_v;
 		bool eof_v = false;
 		bool fail_v = false;
 		bool bad_v = false;
@@ -103,10 +98,10 @@ namespace gsplat::vulkan {
 		gptr_t host_mem_v = nullptr;
 		char* map_buffer_v = nullptr;
 		std::size_t buffer_pos = 0;
-		std::size_t buffer_size = 4096;
+		std::size_t buffer_size = 512;
 	public:
-		buffer_iostream_strand(buffer<T>*);
-		~buffer_iostream_strand();
+		buffer_io_strand(buffer*);
+		~buffer_io_strand();
 	protected:
 		virtual bool do_eof() const {
 			return eof_v;
@@ -135,17 +130,17 @@ namespace gsplat::vulkan {
 				this->pos += pos;
 				break;
 			case seekdir::end:
-				this->pos = pos + buffer_v->raw_size();
+				this->pos = pos + buffer_v->size();
 				break;
 			}
-			if (this->pos > buffer_v->raw_size()) {
-				this->pos = buffer_v->raw_size();
+			if (this->pos > buffer_v->size()) {
+				this->pos = buffer_v->size();
 			}
 		}
 		virtual std::size_t do_get_gpos() const {
 			return pos;
 		}
-		virtual void do_set_gpos(std::size_t pos, seekdir) {
+		virtual void do_set_gpos(std::size_t pos, seekdir dir) {
 			switch (dir) {
 			case seekdir::beg:
 				this->pos = pos;
@@ -154,11 +149,11 @@ namespace gsplat::vulkan {
 				this->pos += pos;
 				break;
 			case seekdir::end:
-				this->pos = pos + buffer_v->raw_size();
+				this->pos = pos + buffer_v->size();
 				break;
 			}
-			if (this->pos > buffer_v->raw_size()) {
-				this->pos = buffer_v->raw_size();
+			if (this->pos > buffer_v->size()) {
+				this->pos = buffer_v->size();
 			}
 		}
 
@@ -166,12 +161,16 @@ namespace gsplat::vulkan {
 			eof_v = false;
 			std::ptrdiff_t buf_offset = pos - buffer_pos;
 			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
-			std::ptrdiff_t length = std::min((std::ptrdiff_t)size, buffer_size - buf_offset, buffer_v->raw_size() - pos);
-			stamp::core::s_assert(length+buf_offset <= buffer_size);
+			std::ptrdiff_t length = std::min(
+				(std::ptrdiff_t)size, 
+				(std::ptrdiff_t)(buffer_size - buf_offset), 
+				(std::ptrdiff_t)(buffer_v->size() - pos));
+			stamp::core::s_assert(length + buf_offset <= buffer_size);
+			stamp::core::s_assert(length + pos <= buffer_v->size());
 
 			std::copy(span, span + length, map_buffer_v + buf_offset);
 			pos += length;
-			if (pos >= buffer_v->raw_size()) {
+			if (pos >= buffer_v->size()) {
 				eof_v = true;
 			}
 			return length;
@@ -180,19 +179,23 @@ namespace gsplat::vulkan {
 			eof_v = false;
 			std::ptrdiff_t buf_offset = pos - buffer_pos;
 			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
-			std::ptrdiff_t length = std::min((std::ptrdiff_t)size, buffer_size - buf_offset, , buffer_v->raw_size() - pos);
+			std::ptrdiff_t length = std::min(
+				(std::ptrdiff_t)size, 
+				(std::ptrdiff_t)(buffer_size - buf_offset), 
+				(std::ptrdiff_t)(buffer_v->size() - pos));
 			stamp::core::s_assert(length + buf_offset <= buffer_size);
+			stamp::core::s_assert(length + pos <= buffer_v->size());
 
 			std::copy(map_buffer_v + buf_offset, map_buffer_v + buf_offset + length, span);
 			pos += length;
-			if (pos >= buffer_v->raw_size()) {
+			if (pos >= buffer_v->size()) {
 				eof_v = true;
 			}
 			return length;
 		}
 
 		virtual bool do_await_ready() {
-			if (pos < buffer_pos || pos > buffer_pos + buffers_size) {
+			if (pos < buffer_pos || pos > buffer_pos + buffer_size) {
 				return false;
 			}
 			return true;
@@ -208,18 +211,21 @@ namespace gsplat::vulkan {
 			return good();
 		}
 	public:
+		template<typename ValueType>
 		void set_pos(std::size_t index) {
-			set_ppos(index * sizeof(value_type));
+			set_ppos(index * sizeof(ValueType));
 			// set_gpos(index * sizeof(value_type)); // redundent, both set same pos.
 		}
-		stamp::task::coroutine<value_type> get_next() {
-			value_type v;
-			co_await this->get_span(&v, sizeof(value_type));
+		template<typename ValueType>
+		stamp::task::coroutine<ValueType> get_next() {
+			ValueType v;
+			co_await this->get_span(&v, sizeof(ValueType));
 			co_return v;
 		}
-		stamp::task::coroutine<value_type> set_next(const_reference val) {
-			value_type v;
-			co_await this->put_span(&v, sizeof(value_type));
+		template<typename ValueType>
+		stamp::task::coroutine<ValueType> set_next(const_reference val) {
+			ValueType v;
+			co_await this->put_span(&v, sizeof(ValueType));
 			co_return v;
 		}
 	};
@@ -232,33 +238,24 @@ namespace gsplat::vulkan {
 	}
 	*/
 
-	template<typename T>
 	class buffer {
 	public:
-		using value_type = T;
 		using size_type = std::size_t;
-		using pointer = T*;
-		using const_pointer = const T*;
-		using reference = T&;
-		using const_reference = const T&;
 	private:
 		VkBuffer buffer_v;
 		gptr_t raw_data_v;
 	public:
 		buffer();
 		buffer(size_type size);
-		buffer(size_type size, const_reference default_value);
 		// copy buffer in different memory type
 		~buffer();
-		buffer(const buffer<T>&);
-		buffer(buffer<T>&&);
-		buffer<T>& operator =(const buffer<T>&);
-		buffer<T>& operator =(buffer<T>&&);
+		buffer(const buffer&);
+		buffer(buffer&&);
+		buffer& operator =(const buffer&);
+		buffer& operator =(buffer&&);
 
 		// number of elements
 		size_type size() const;
-		// number of bytes
-		size_type raw_size() const;
 		size_type max_size() const;
 		bool empty() const;
 		VkBuffer handle() const;
@@ -272,9 +269,16 @@ namespace gsplat::vulkan {
 
 		}
 
-		buffer_io_strand<T> co_iostream_strand() {
+		buffer_io_strand co_iostream_strand() {
 			return {this};
 		}
+
+		template<typename T>
+		std::vector<T> to_vector() {
+
+		}
+		template<typename T>
+		static buffer from_vector(const std::vector<T>&);
 	};
 
 	using image_storage_t = int;
@@ -333,7 +337,7 @@ namespace gsplat::vulkan {
 		}
 		
 		template<typename T>
-		void bind(int binding, const buffer<T>&) {
+		void bind(int binding, const buffer&) {
 
 		}
 		void invoke(int x, int y, int z) {
