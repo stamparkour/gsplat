@@ -55,7 +55,7 @@ void gsplat::train::record_epoch_loss(int epoch, float loss) {
 	std::cout << "epoch " << epoch << "  loss " << loss << std::endl;
 }
 
-void gsplat::train::train(shader_store* shaders, database* db, command_queue* q, const train_settings& ts_1) {
+stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, database* db, command_queue* q, const train_settings& ts_1) {
 	train_settings ts = ts_1;
 	auto& images = db->image_set().data();
 	if (images.empty()) throw std::runtime_error("train: no images in the database");
@@ -154,6 +154,8 @@ void gsplat::train::train(shader_store* shaders, database* db, command_queue* q,
 		if (!ts.export_path.empty()) export_png(ts.export_path + "out" + std::to_string(epoch) + ".png", &image_out, db->image_set().data()[images.size()-1].width(), db->image_set().data()[images.size() - 1].height());
 
 	}
+
+	co_return;
 }
 
 void my_write_func(void* context, void* data, int size) {

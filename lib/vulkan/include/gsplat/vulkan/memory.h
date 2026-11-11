@@ -452,8 +452,8 @@ namespace gsplat::vulkan {
 		stamp::task::coroutine<void> resize(size_type new_size) {
 
 		}
-		stamp::task::coroutine<buffer<T>> clone() {
-			buffer<T> b{size};
+		stamp::task::coroutine<buffer> copy() {
+			buffer b{size_v};
 			// TODO: get queue
 			VkCommandBufferAllocateInfo allocInfo{};
 			allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -498,11 +498,11 @@ namespace gsplat::vulkan {
 		}
 
 		template<typename T>
-		std::vector<T> to_vector() {
+		stamp::task::coroutine<std::vector<T>> to_vector() {
 
 		}
 		template<typename T>
-		static buffer from_vector(const std::vector<T>&);
+		static stamp::task::coroutine<buffer> from_vector(const std::vector<T>&);
 	};
 
 	using image_storage_t = int;
