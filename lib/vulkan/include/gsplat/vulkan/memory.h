@@ -6,6 +6,8 @@
 #include <gsplat/vulkan/vulkan2.h>
 #include <cstddef>
 #include <string>
+#include <algorithm>
+#include <vector>
 #include <stamp/task/stream.h>
 #include <numeric>
 #include <cstdint> 
@@ -202,46 +204,145 @@ namespace gsplat::vulkan {
 
 	template<typename T>
 	class buffer;
-	template<typename T>
 	class buffer_io_strand : stamp::task::co_stream_strand {
-	public:
-		using value_type = T;
-		using reference = T&;
-		using const_reference = const T&;
 	private:
-		buffer<T>* buffer_v;
+		buffer* buffer_v;
+		bool eof_v = false;
+		bool fail_v = false;
+		bool bad_v = false;
+		std::size_t pos = 0;
+
+		gptr_t host_mem_v = nullptr;
+		char* map_buffer_v = nullptr;
+		std::size_t buffer_pos = 0;
+		std::size_t buffer_size = 512;
 	public:
-		buffer_iostream_strand(buffer<T>*);
-		~buffer_iostream_strand();
+		buffer_io_strand(buffer*);
+		~buffer_io_strand();
 	protected:
-		virtual bool do_eof() const;
-		virtual bool do_fail() const;
-		virtual bool do_bad() const;
-
-		virtual std::size_t do_get_ppos() const;
-		virtual void do_set_ppos(std::size_t pos, seekdir);
-		virtual std::size_t do_get_gpos() const;
-		virtual void do_set_gpos(std::size_t pos, seekdir);
-
-		virtual std::size_t do_try_put_span(const char* span, std::size_t size);
-		virtual std::size_t do_try_get_span(char* span, std::size_t size);
-
-		virtual bool do_await_ready();
-		virtual bool do_await_suspend(std::coroutine_handle<> h);
-		virtual std::size_t do_await_resume();
-	public:
-		void go_at(std::size_t index) {
-			set_ppos(index * sizeof(value_type));
-			set_gpos(index * sizeof(value_type));
+		virtual bool do_eof() const {
+			return eof_v;
 		}
-		stamp::task::coroutine<value_type> get_next() {
-			value_type v;
-			co_await this->get_span(&v, sizeof(value_type));
+		virtual bool do_fail() const {
+			return fail_v;
+		}
+		virtual bool do_bad() const {
+			return bad_v;
+		}
+		virtual void clear() {
+			eof_v = false;
+			fail_v = false;
+			bad_v = false;
+		}
+
+		virtual std::size_t do_get_ppos() const {
+			return pos;
+		}
+		virtual void do_set_ppos(std::size_t pos, seekdir dir) {
+			switch (dir) {
+			case seekdir::beg:
+				this->pos = pos;
+				break;
+			case seekdir::cur:
+				this->pos += pos;
+				break;
+			case seekdir::end:
+				this->pos = pos + buffer_v->size();
+				break;
+			}
+			if (this->pos > buffer_v->size()) {
+				this->pos = buffer_v->size();
+			}
+		}
+		virtual std::size_t do_get_gpos() const {
+			return pos;
+		}
+		virtual void do_set_gpos(std::size_t pos, seekdir dir) {
+			switch (dir) {
+			case seekdir::beg:
+				this->pos = pos;
+				break;
+			case seekdir::cur:
+				this->pos += pos;
+				break;
+			case seekdir::end:
+				this->pos = pos + buffer_v->size();
+				break;
+			}
+			if (this->pos > buffer_v->size()) {
+				this->pos = buffer_v->size();
+			}
+		}
+
+		virtual std::size_t do_try_put_span(const char* span, std::size_t size) {
+			eof_v = false;
+			std::ptrdiff_t buf_offset = pos - buffer_pos;
+			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
+			std::ptrdiff_t length = std::min(
+				(std::ptrdiff_t)size, 
+				(std::ptrdiff_t)(buffer_size - buf_offset), 
+				(std::ptrdiff_t)(buffer_v->size() - pos));
+			stamp::core::s_assert(length + buf_offset <= buffer_size);
+			stamp::core::s_assert(length + pos <= buffer_v->size());
+
+			std::copy(span, span + length, map_buffer_v + buf_offset);
+			pos += length;
+			if (pos >= buffer_v->size()) {
+				eof_v = true;
+			}
+			return length;
+		}
+		virtual std::size_t do_try_get_span(char* span, std::size_t size) {
+			eof_v = false;
+			std::ptrdiff_t buf_offset = pos - buffer_pos;
+			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
+			std::ptrdiff_t length = std::min(
+				(std::ptrdiff_t)size, 
+				(std::ptrdiff_t)(buffer_size - buf_offset), 
+				(std::ptrdiff_t)(buffer_v->size() - pos));
+			stamp::core::s_assert(length + buf_offset <= buffer_size);
+			stamp::core::s_assert(length + pos <= buffer_v->size());
+
+			std::copy(map_buffer_v + buf_offset, map_buffer_v + buf_offset + length, span);
+			pos += length;
+			if (pos >= buffer_v->size()) {
+				eof_v = true;
+			}
+			return length;
+		}
+
+		virtual bool do_await_ready() {
+			if (pos < buffer_pos || pos > buffer_pos + buffer_size) {
+				return false;
+			}
+			return true;
+		}
+		virtual bool do_await_suspend(std::coroutine_handle<> h) {
+			std::size_t aligned_pos = (pos / buffer_size) * buffer_size;
+			// TODO: copy current buffer (make sure to cut off at file end)
+			// then copy new range into strand's buffer.
+			buffer_pos = aligned_pos;
+			return false; // resumes coroutine.
+		}
+		virtual bool do_await_resume() {
+			return good();
+		}
+	public:
+		template<typename ValueType>
+		void set_pos(std::size_t index) {
+			set_ppos(index * sizeof(ValueType));
+			// set_gpos(index * sizeof(value_type)); // redundent, both set same pos.
+		}
+		template<typename ValueType>
+		stamp::task::coroutine<ValueType> get_next() {
+			ValueType v;
+			co_await this->get_span(&v, sizeof(ValueType));
 			co_return v;
 		}
-		stamp::task::coroutine<value_type> set_next(const_reference val) {
-			value_type v;
-			co_await this->put_span(&v, sizeof(value_type));
+		template<typename ValueType>
+		stamp::task::coroutine<ValueType> set_next(const_reference val) {
+			ValueType v;
+			co_await this->put_span(&v, sizeof(ValueType));
 			co_return v;
 		}
 	};
@@ -254,15 +355,9 @@ namespace gsplat::vulkan {
 	}
 	*/
 
-	template<typename T>
 	class buffer {
 	public:
-		using value_type = T;
 		using size_type = std::size_t;
-		using pointer = T*;
-		using const_pointer = const T*;
-		using reference = T&;
-		using const_reference = const T&;
 	private:
 		size_type size_v = 0;
 		VkBuffer buffer_v = nullptr;
@@ -402,6 +497,13 @@ namespace gsplat::vulkan {
 		buffer_io_strand<T> co_iostream_strand() {
 			return {this};
 		}
+
+		template<typename T>
+		std::vector<T> to_vector() {
+
+		}
+		template<typename T>
+		static buffer from_vector(const std::vector<T>&);
 	};
 
 	using image_storage_t = int;
@@ -460,7 +562,7 @@ namespace gsplat::vulkan {
 		}
 		
 		template<typename T>
-		void bind(int binding, const buffer<T>&) {
+		void bind(int binding, const buffer&) {
 
 		}
 		void invoke(int x, int y, int z) {
