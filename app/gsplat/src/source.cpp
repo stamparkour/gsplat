@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     vulkan_context ctx{cfg};
 
 	// init context
-	vulkan_context_old context{};
+	/*vulkan_context_old context{};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
 		int score = 0;
@@ -66,5 +66,5 @@ int main(int argc, char** argv) {
 		.background{0, 0, 0, 0},   // rgb, 0..1
 		.intrinsics = intrinsics,   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
 		.export_path = path + "/out/"
-	});
+	});*/
 }
