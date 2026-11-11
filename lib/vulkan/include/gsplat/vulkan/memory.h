@@ -202,7 +202,6 @@ namespace gsplat::vulkan {
 		vulkan_memory_manager::global_instance()->free(p);
 	}
 
-	template<typename T>
 	class buffer;
 	class buffer_io_strand : stamp::task::co_stream_strand {
 	private:
@@ -382,18 +381,18 @@ namespace gsplat::vulkan {
 			std::size_t alignment = std::lcm((std::size_t)prop.alignment, alignof(T));
 			raw_data_v = alloc_gpu_mem(size, alignment, memory_type::device_local);
 		}
-		buffer(size_type size, const_reference default_value);
+		buffer(size_type size);
 		// copy buffer in different memory type
 		~buffer();
-		buffer(const buffer<T>&) = delete;
-		buffer(buffer<T>&& other) {
+		buffer(const buffer&) = delete;
+		buffer(buffer&& other) {
 			buffer_v = other.buffer_v;
 			other.buffer_v = nullptr;
 			raw_data_v = other.raw_data_v;
 			other.raw_data_v = nullptr;
 		}
-		buffer<T>& operator =(const buffer<T>&) = delete;
-		buffer<T>& operator =(buffer<T>&& other) {
+		buffer& operator =(const buffer&) = delete;
+		buffer& operator =(buffer&& other) {
 			buffer_v = other.buffer_v;
 			other.buffer_v = nullptr;
 			raw_data_v = other.raw_data_v;
@@ -412,7 +411,7 @@ namespace gsplat::vulkan {
 		VkBuffer handle() const {
 			return buffer_v;
 		}
-		VkBuffer ptr() const {
+		gptr_t ptr() const {
 			return raw_data_v;
 		}
 
@@ -494,7 +493,7 @@ namespace gsplat::vulkan {
 		}
 		
 
-		buffer_io_strand<T> co_iostream_strand() {
+		buffer_io_strand co_iostream_strand() {
 			return {this};
 		}
 
