@@ -9,7 +9,6 @@
 using namespace gsplat::vulkan;
 
 int main(int argc, char** argv) {
-	std::cout << "Hello World!" << std::endl;
     vulkan_context_config cfg = {
         .project_name = "gsplat",
         .major_version = 1,

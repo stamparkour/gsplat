@@ -11,20 +11,6 @@
 #include <functional>
 #include <algorithm>
 
-/*
-
-requirements:
-- RAII for vulkan
-- initialize context inside constructor (vulkan_context(config);)
-- deinitialize context inside deconstructor (~vulkan_context();)
-- implement device and physical_device static functions
-
-you may edit:
-- anything inside the 'lib/vulkan' subsystem.
-- prioritize edits inside src/vulkan2.cpp and include/gsplat/vulkan/vulkan2.h
-
-*/
-
 namespace gsplat::vulkan {
 	struct vulkan_context_config {
 		std::string project_name;
@@ -34,7 +20,7 @@ namespace gsplat::vulkan {
 	};
 
     struct vulkan_queue {
-        VkQueue handle;
+        VkQueue handle = VK_NULL_HANDLE;
         uint32_t family_index;
         uint32_t index;
     };
@@ -46,6 +32,8 @@ namespace gsplat::vulkan {
         inline static VkPhysicalDevice vk_phys_dev = VK_NULL_HANDLE;
         inline static VkDevice vk_dev = VK_NULL_HANDLE;
         inline static vulkan_queue vk_queue;
+        inline static VkDescriptorPool vk_desc_pool;
+        inline static VkCommandPool vk_cmd_pool;
         inline static stamp::task::co_simple_stack on_destroy_stack;
 
     public:
@@ -55,8 +43,8 @@ namespace gsplat::vulkan {
 		static VkDevice device();
 		static VkPhysicalDevice physical_device();
 		static VkInstance instance();
-		static int queue_family_index();
-		static int queue_index();
+		static uint32_t queue_family_index();
+		static uint32_t queue_index();
 		static VkQueue queue();
 		static VkDescriptorPool descriptor_pool();
         static VkCommandPool command_pool();
@@ -65,7 +53,6 @@ namespace gsplat::vulkan {
             return on_destroy_stack.push();
         }
     };
-
 
     // Contains default device criteria such as graphics and compute queue requirement
     struct device_criteria {
@@ -77,15 +64,12 @@ namespace gsplat::vulkan {
         
     };
 
-    VkInstance create_instance(VkApplicationInfo*, std::vector<const char*> layers, std::vector<const char*> exts, VkInstanceCreateFlags);
+    VkInstance create_instance(const VkApplicationInfo&, std::vector<const char*> layers, std::vector<const char*> exts, VkInstanceCreateFlags);
     VkPhysicalDevice create_physical_device(VkInstance instance, const device_criteria& criteria);
     uint32_t find_queue_family_index(VkPhysicalDevice device, VkQueueFlags required_queues);
     std::vector<VkExtensionProperties> get_available_extensions(const char* layer_name);
     std::vector<VkLayerProperties> get_available_layers();
-    std::vector<VkExtensionProperties> get_available_device_extensions(
-        VkPhysicalDevice device,
-        const char* layer_name
-    );
+    std::vector<VkExtensionProperties> get_available_device_extensions(VkPhysicalDevice device, const char* layer_name);
 
     // Utility functions
     template <typename T, typename U, typename Cmp, typename NotFound>

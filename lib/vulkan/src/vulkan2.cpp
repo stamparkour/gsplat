@@ -6,7 +6,6 @@
 #include <iostream>
 #include <vector>
 #include <functional>
-#include <optional>
 
 using namespace gsplat::vulkan;
 
@@ -34,16 +33,17 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     };
-    vk_instance = create_instance(&app_info, layers, exts, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR);
+    vk_instance = create_instance(app_info, layers, exts, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR);
 
     device_criteria criteria{};
     vk_phys_dev = create_physical_device(instance(), criteria);
 
+    // Print name of selected physical device
     VkPhysicalDeviceProperties phys_dev_props;
     vkGetPhysicalDeviceProperties(physical_device(), &phys_dev_props);
     std::cout << "Selected GPU Device: " << phys_dev_props.deviceName << std::endl;
 
-    // Create Logical Device and Queues
+    // Create Logical Device and Queue
     uint32_t qf_index = find_queue_family_index(physical_device(), criteria.required_queues);
     float queue_priority = 1.0f;
     VkDeviceQueueCreateInfo queue_ci = {
@@ -98,11 +98,57 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         .index = 0
     };
 
+    // Create Descriptor Pool (Requires shader descriptor counts and sets which is unknown so a placeholder value is used)
+    VkDescriptorPoolSize desc_pool_size_ci = {
+        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        // Total number of descriptors used by shaders is unknown so 64 is used as placeholder
+        .descriptorCount = 64
+    };
+    VkDescriptorPoolCreateInfo desc_pool_ci = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // Previous vulkan_context had incorrect update after bind bit
+        // Each shader needs a set if using buffers. Since the number of shaders is unknown 16 is used as placeholder
+        .maxSets = 16,
+        .poolSizeCount = 1,
+        .pPoolSizes = &desc_pool_size_ci
+    };
+    if (VkResult r = vkCreateDescriptorPool(device(), &desc_pool_ci, nullptr, &vk_desc_pool);
+        r != VK_SUCCESS
+    ) {
+        throw std::runtime_error("Could not create descriptor pool for Vulkan Device. Vk Code: " + std::to_string(r));
+    }
+
+    // Create Command Pool with short-lived cmd buffers flag
+    VkCommandPoolCreateInfo cmd_pool_ci = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .queueFamilyIndex = queue_family_index()
+    };
+    if (VkResult r = vkCreateCommandPool(device(), &cmd_pool_ci, nullptr, &vk_cmd_pool);
+        r != VK_SUCCESS
+    ) {
+        throw std::runtime_error("Could not create command pool for Vulkan Device. Vk Code: " + std::to_string(r));
+    }
+
+
     global_config = &config;
 }
 
 vulkan_context::~vulkan_context() {
+    if (VkResult r = vkDeviceWaitIdle(device()); r != VK_SUCCESS) {
+        std::cerr << "Encountered error while waiting for Vulkan Device to become idle. Vk Code: " << r << std::endl;
+    }
     while (on_destroy_stack.pop_all_unsafe());
+    if (command_pool()) {
+        vkDestroyCommandPool(device(), command_pool(), nullptr);
+        vk_cmd_pool = VK_NULL_HANDLE;
+    }
+    if (descriptor_pool()) {
+        vkDestroyDescriptorPool(device(), descriptor_pool(), nullptr);
+        vk_desc_pool = VK_NULL_HANDLE;
+    }
     if (device()) {
         vkDestroyDevice(device(), nullptr);
         vk_dev = nullptr;
@@ -110,7 +156,7 @@ vulkan_context::~vulkan_context() {
     }
     if (instance()) {
         vkDestroyInstance(instance(), nullptr);
-        vk_instance = nullptr;
+        vk_instance = VK_NULL_HANDLE;
     }
     global_config = nullptr;
 }
@@ -123,21 +169,24 @@ VkPhysicalDevice vulkan_context::physical_device() {
 VkInstance vulkan_context::instance() {
     return vk_instance;
 }
-int vulkan_context::queue_family_index() {
+uint32_t vulkan_context::queue_family_index() {
     return vk_queue.family_index;
 }
-int vulkan_context::queue_index() {
+uint32_t vulkan_context::queue_index() {
     return vk_queue.index;
 }
 VkQueue vulkan_context::queue() {
     return vk_queue.handle;
 }
 VkDescriptorPool vulkan_context::descriptor_pool() {
-
+    return vk_desc_pool;
+}
+VkCommandPool vulkan_context::command_pool() {
+    return vk_cmd_pool;
 }
 
 VkInstance gsplat::vulkan::create_instance(
-    VkApplicationInfo* app_info,
+    const VkApplicationInfo& app_info,
     std::vector<const char*> layers,
     std::vector<const char*> exts,
     VkInstanceCreateFlags flags
@@ -165,7 +214,7 @@ VkInstance gsplat::vulkan::create_instance(
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = nullptr,
         .flags = flags,
-        .pApplicationInfo = app_info,
+        .pApplicationInfo = &app_info,
         .enabledLayerCount = (uint32_t)layers.size(),
         .ppEnabledLayerNames = layers.data(),
         .enabledExtensionCount = (uint32_t)exts.size(),
