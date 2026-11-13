@@ -2,6 +2,7 @@
 #define GSPLAT_TRAIN_H
 
 #include <gsplat/train/shader_store.h>
+#include <stamp/task/coroutine.h>
 
 namespace gsplat::train {
 	// what project_gaussians and project_backwards take
@@ -29,9 +30,11 @@ namespace gsplat::train {
 	void record_epoch_loss(int epoch, float loss);
 
 	// trains the database's gaussians in place, on the GPU
-	void train(shader_store* shaders, gsplat::data::database* db, gsplat::vulkan::command_queue* q, const train_settings& ts = {});
+	stamp::task::coroutine<void> train(shader_store* shaders, gsplat::data::database* db, gsplat::vulkan::command_queue* q, const train_settings& ts = {});
 
 	void export_png(const std::string& out_path, gsplat::vulkan::array_buffer<glm::vec4>* buf, int width, int height);
+
+	stamp::task::coroutine<void> epoch(gsplat::data::database* db, const train_settings& ts = {});
 }
 
 #endif // GSPLAT_TRAIN_H

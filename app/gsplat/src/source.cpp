@@ -1,5 +1,6 @@
 #include <iostream>
 #include <gsplat/vulkan.h>
+#include <gsplat/vulkan/vulkan2.h>
 #include <gsplat/core/read_file.h>
 #include <gsplat/data/database.h>
 #include <gsplat/train/shader_store.h>
@@ -12,6 +13,13 @@ int main(int argc, char** argv) {
 
 	// init context
 	vulkan_context_old context{};
+    vulkan_context_config cfg = {
+        .project_name = "gsplat",
+        .major_version = 1,
+        .minor_version = 0,
+        .patch_version = 0
+    };
+    vulkan_context ctx{cfg};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
 		int score = 0;

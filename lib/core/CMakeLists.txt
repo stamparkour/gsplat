@@ -24,6 +24,9 @@ target_include_directories(gsplat_core
 	PUBLIC "${gsplat_BINARY_DIR}/lib/core/include"
 )
 
+include(stamp)
+target_link_libraries(gsplat_core PUBLIC stamp::stamp)
+
 # dependencies
 # include(boost)
 # target_link_libraries(core PUBLIC 

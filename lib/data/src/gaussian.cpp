@@ -48,7 +48,7 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 		o.gaussians_v.push_back(gaus);
 	}
 
-	o.buffers_v[0] = array_buffer<gaussian>{buffer_creation_settings{
+	o.buffers_v[0] = buffer<gaussian>{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -60,7 +60,7 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 			o.queue_v,
 		}
 	}};
-	o.buffers_v[1] = array_buffer<gaussian>{buffer_creation_settings{
+	o.buffers_v[1] = buffer<gaussian>{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
@@ -79,7 +79,7 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 }
 
 void gaussian_set::store_vulkan(int target) {
-	array_buffer<gaussian> buf{buffer_creation_settings{
+	buffer<gaussian> buf{buffer_creation_settings{
 		.usage_transfer_src = true,
 		.usage_storage_buffer = true,
 		.size = gaussians_v.size(),
@@ -102,78 +102,8 @@ void gaussian_set::store_vulkan(int target) {
 	this->buffers_v[(active_buffer + target) % buffer_count].transfer(&buf);
 }
 
-void gsplat::data::gaussian_set::filter_gaussians() {
-	fetch_vulkan(1);
-
-	std::vector<int> oper{};
-	oper.resize(this->gaussians_v.size());
-
-	int mod_count = 0;
-
-	for (int i = 0; i < oper.size(); i++) {
-		if (gaussians_v[i].mag2() > 0.05) {
-			oper[i] = 1;
-			mod_count++;
-		}
-	}
-	fetch_vulkan(0);
-	for (int i = 0; i < oper.size(); i++) {
-		if (gaussians_v[i].color.color.w < 0.01) {
-			if (oper[i] == 1) mod_count--;
-			oper[i] = -1;
-			mod_count--;
-		}
-	}
-
-	if (mod_count == 0) return;
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<float> distrib(-0.1, 0.1);
-
-	for (int i = 0, j = 0; i < oper.size(); i++, j++) {
-		if (oper[i] == 1) {
-			gaussians_v[j].scale *= 0.7;
-			auto n = gaussians_v[j];
-			n.mean += glm::vec4(distrib(gen), distrib(gen), distrib(gen), 0);
-			gaussians_v.push_back(n);
-		}
-		else if (oper[i] == -1) {
-			gaussians_v.erase(gaussians_v.begin() + j);
-			j--;
-		}
-	}
-
-	buffers_v[0] = array_buffer<gaussian>{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = gaussians_v.size(),
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-	buffers_v[1] = array_buffer<gaussian>{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = gaussians_v.size(),
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-	store_vulkan(0);
-	store_vulkan(1);
-}
-
 void gaussian_set::fetch_vulkan(int target) {
-	array_buffer<gaussian> buf{buffer_creation_settings{
+	buffer<gaussian> buf{buffer_creation_settings{
 		.usage_transfer_dst = true,
 		.usage_storage_buffer = true,
 		.size = gaussians_v.size(),

@@ -4,6 +4,7 @@
 
 #include <gsplat/vulkan/config.h>
 #include <gsplat/vulkan/vulkan_include.h>
+#include <stamp/task/coroutine.h>
 #include <string>
 
 /*
@@ -30,6 +31,9 @@ namespace gsplat::vulkan {
 
 	class vulkan_context {
 		inline static vulkan_context* global_context = nullptr;
+        inline static VkInstance vk_instance;
+        inline static VkPhysicalDevice vk_phys_dev;
+        inline static VkDevice vk_dev;
 	public:
 		vulkan_context(const vulkan_context_config&);
 		~vulkan_context();
@@ -41,6 +45,12 @@ namespace gsplat::vulkan {
 		static int queue_index();
 		static VkQueue queue();
 		static VkDescriptorPool descriptor_pool();
+
+		// use stamp::task::co_simple_stack on_destroy_stack
+		// run 'while(on_destroy_stack.pop_all());' in deconstructor to deque everything.
+		static auto co_on_destroy() {
+			return on_destroy_stack.push();
+		}
 	};
 }
 

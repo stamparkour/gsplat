@@ -19,6 +19,13 @@ set(SLANG_COMPUTE_SOURCES
     "src/project_backward.slang"
 )
 
+# Ensure shaders directory exists
+add_custom_target(ensure_shaders_dir
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${GSPLAT_OUTPUT_DIRECTORY}/shaders"
+    VERBATIM
+)
+add_dependencies(gsplat_vulkan ensure_shaders_dir)
+
 # 3. Loop through the list to create individual custom commands
 set(GENERATED_SPV_FILES "")
 
@@ -57,7 +64,7 @@ foreach(SRC_FILE ${SLANG_COMPUTE_SOURCES})
     # Create the custom rule for this specific file
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -I "${CMAKE_CURRENT_SOURCE_DIR}/src/" -profile spirv_1_1 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
+        COMMAND "${gsplat_SLANG_COMPILER_PATH}" "${ABS_SRC_FILE}" -target spirv -fvk-use-gl-layout -I "${CMAKE_CURRENT_SOURCE_DIR}/src/" -profile spirv_1_3 -entry computeMain -stage compute -matrix-layout-column-major -o "${SPV_FILE}"
         DEPENDS "${ABS_SRC_FILE}"
         COMMENT "Compiling ${FILE_NAME} to SPIR-V..."
     )
