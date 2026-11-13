@@ -1,4 +1,3 @@
-
 #ifndef GSPLAT_VULKAN_VULKAN2_H
 #define GSPLAT_VULKAN_VULKAN2_H
 
@@ -28,12 +27,12 @@ namespace gsplat::vulkan {
     class vulkan_context {
         inline static vulkan_context* global_context = nullptr;
         inline static const vulkan_context_config* global_config = nullptr;
-        inline static VkInstance vk_instance = VK_NULL_HANDLE;
-        inline static VkPhysicalDevice vk_phys_dev = VK_NULL_HANDLE;
-        inline static VkDevice vk_dev = VK_NULL_HANDLE;
-        inline static vulkan_queue vk_queue;
-        inline static VkDescriptorPool vk_desc_pool;
-        inline static VkCommandPool vk_cmd_pool;
+        inline static VkInstance instance_v = VK_NULL_HANDLE;
+        inline static VkPhysicalDevice phys_dev_v = VK_NULL_HANDLE;
+        inline static VkDevice dev_v = VK_NULL_HANDLE;
+        inline static vulkan_queue queue_v;
+        inline static VkDescriptorPool desc_pool_v;
+        inline static VkCommandPool cmd_pool_v;
         inline static stamp::task::co_simple_stack on_destroy_stack;
 
     public:
@@ -61,7 +60,6 @@ namespace gsplat::vulkan {
         std::function<int(const VkPhysicalDeviceProperties&)> prop_scorer;
         std::function<int(const VkPhysicalDeviceFeatures&)> feature_scorer;
         std::function<int(const VkPhysicalDeviceMemoryProperties&)> mem_props_scorer;
-        
     };
 
     VkInstance create_instance(const VkApplicationInfo&, std::vector<const char*> layers, std::vector<const char*> exts, VkInstanceCreateFlags);

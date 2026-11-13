@@ -33,10 +33,10 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     };
-    vk_instance = create_instance(app_info, layers, exts, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR);
+    instance_v = create_instance(app_info, layers, exts, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR);
 
     device_criteria criteria{};
-    vk_phys_dev = create_physical_device(instance(), criteria);
+    phys_dev_v = create_physical_device(instance(), criteria);
 
     // Print name of selected physical device
     VkPhysicalDeviceProperties phys_dev_props;
@@ -83,7 +83,7 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         .ppEnabledExtensionNames = dev_exts.data(),
         .pEnabledFeatures = &dev_features
     };
-    if (VkResult r = vkCreateDevice(physical_device(), &dev_ci, nullptr, &vk_dev);
+    if (VkResult r = vkCreateDevice(physical_device(), &dev_ci, nullptr, &dev_v);
         r != VK_SUCCESS
     ) {
         throw std::runtime_error("Could not create the Vulkan Device. Vk Code: " + std::to_string(r));
@@ -92,7 +92,7 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
     // Get and store created device queue
     VkQueue queue;
     vkGetDeviceQueue(device(), qf_index, 0, &queue);
-    vk_queue = {
+    queue_v = {
         .handle = queue,
         .family_index = qf_index,
         .index = 0
@@ -113,7 +113,7 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         .poolSizeCount = 1,
         .pPoolSizes = &desc_pool_size_ci
     };
-    if (VkResult r = vkCreateDescriptorPool(device(), &desc_pool_ci, nullptr, &vk_desc_pool);
+    if (VkResult r = vkCreateDescriptorPool(device(), &desc_pool_ci, nullptr, &desc_pool_v);
         r != VK_SUCCESS
     ) {
         throw std::runtime_error("Could not create descriptor pool for Vulkan Device. Vk Code: " + std::to_string(r));
@@ -126,7 +126,7 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
         .queueFamilyIndex = queue_family_index()
     };
-    if (VkResult r = vkCreateCommandPool(device(), &cmd_pool_ci, nullptr, &vk_cmd_pool);
+    if (VkResult r = vkCreateCommandPool(device(), &cmd_pool_ci, nullptr, &cmd_pool_v);
         r != VK_SUCCESS
     ) {
         throw std::runtime_error("Could not create command pool for Vulkan Device. Vk Code: " + std::to_string(r));
@@ -143,46 +143,59 @@ vulkan_context::~vulkan_context() {
     while (on_destroy_stack.pop_all_unsafe());
     if (command_pool()) {
         vkDestroyCommandPool(device(), command_pool(), nullptr);
-        vk_cmd_pool = VK_NULL_HANDLE;
+        cmd_pool_v = VK_NULL_HANDLE;
     }
     if (descriptor_pool()) {
         vkDestroyDescriptorPool(device(), descriptor_pool(), nullptr);
-        vk_desc_pool = VK_NULL_HANDLE;
+        desc_pool_v = VK_NULL_HANDLE;
     }
     if (device()) {
         vkDestroyDevice(device(), nullptr);
-        vk_dev = nullptr;
-        vk_queue.handle = VK_NULL_HANDLE;
+        dev_v = VK_NULL_HANDLE;
+        queue_v.handle = VK_NULL_HANDLE;
     }
     if (instance()) {
         vkDestroyInstance(instance(), nullptr);
-        vk_instance = VK_NULL_HANDLE;
+        instance_v = VK_NULL_HANDLE;
     }
     global_config = nullptr;
 }
+template <typename T>
+static T uninit_check(T handle) {
+    if (handle == VK_NULL_HANDLE) {
+        throw std::runtime_error("Attempted to access Vulkan Context before initialization");
+    }
+    return handle;
+}
 VkDevice vulkan_context::device() {
-    return vk_dev;
+    return uninit_check<VkDevice>(dev_v);
 }
 VkPhysicalDevice vulkan_context::physical_device() {
-    return vk_phys_dev;
+    return uninit_check<VkPhysicalDevice>(phys_dev_v);
 }
 VkInstance vulkan_context::instance() {
-    return vk_instance;
+    return uninit_check<VkInstance>(instance_v);
 }
 uint32_t vulkan_context::queue_family_index() {
-    return vk_queue.family_index;
+    vulkan_queue q = queue_v;
+    uninit_check<VkQueue>(q.handle);
+    return q.family_index;
 }
 uint32_t vulkan_context::queue_index() {
-    return vk_queue.index;
+    vulkan_queue q = queue_v;
+    uninit_check<VkQueue>(q.handle);
+    return q.index;
 }
 VkQueue vulkan_context::queue() {
-    return vk_queue.handle;
+    vulkan_queue q = queue_v;
+    uninit_check<VkQueue>(q.handle);
+    return q.handle;
 }
 VkDescriptorPool vulkan_context::descriptor_pool() {
-    return vk_desc_pool;
+    return uninit_check<VkDescriptorPool>(desc_pool_v);
 }
 VkCommandPool vulkan_context::command_pool() {
-    return vk_cmd_pool;
+    return uninit_check<VkCommandPool>(cmd_pool_v);
 }
 
 VkInstance gsplat::vulkan::create_instance(

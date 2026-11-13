@@ -1,10 +1,11 @@
 #include <iostream>
-#include <gsplat/vulkan.h>
+//#include <gsplat/vulkan.h>
 #include <gsplat/vulkan/vulkan2.h>
+#include <gsplat/vulkan/memory.h>
 #include <gsplat/core/read_file.h>
-#include <gsplat/data/database.h>
-#include <gsplat/train/shader_store.h>
-#include <gsplat/train.h>
+//#include <gsplat/data/database.h>
+//#include <gsplat/train/shader_store.h>
+//#include <gsplat/train.h>
 
 using namespace gsplat::vulkan;
 
@@ -16,6 +17,8 @@ int main(int argc, char** argv) {
         .patch_version = 0
     };
     vulkan_context ctx{cfg};
+    compute_shader_config shader_conf = {"calc_covariance.slang.spv", 2};
+    compute_shader shader{shader_conf};
 
 	// init context
 	/*vulkan_context_old context{};
