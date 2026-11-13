@@ -5,11 +5,13 @@ set(PROJECT_SOURCES
 	"src/train.cpp"
 	"src/shader_store.cpp"
 	"src/scene.cpp"
+	"src/modify.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/train.h"
 	"include/gsplat/train/shader_store.h"
 	"include/gsplat/train/scene.h"
+	"include/gsplat/train/modify.h"
 )
 
 # add the library

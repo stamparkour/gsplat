@@ -23,6 +23,8 @@ namespace gsplat::data {
 
 		void store_vulkan(int buffer_target = 0);
 		void fetch_vulkan(int buffer_target = 0);
+		// remakes both buffers at data().size() and stores data() into them
+		void resize_vulkan();
 
 		void set_active_buffer(int index = 0) { active_buffer = index; }
 		void inc_active_buffer() { active_buffer++; }

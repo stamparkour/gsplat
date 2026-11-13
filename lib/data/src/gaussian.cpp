@@ -195,3 +195,26 @@ void gaussian_set::fetch_vulkan(int target) {
 		std::copy(l.begin(), l.end(), gaussians_v.begin());
 	}
 }
+
+void gaussian_set::resize_vulkan() {
+	for (auto& b : buffers_v) {
+		array_buffer<gaussian> fresh{buffer_creation_settings{
+			.usage_transfer_src = true,
+			.usage_transfer_dst = true,
+			.usage_uniform_buffer = false,
+			.usage_storage_buffer = true,
+			.size = gaussians_v.size(),
+			.min_alignment = 0,
+			.memory = {
+				device_memory_settings{}
+			},
+			.queues = {
+				queue_v,
+			}
+		}};
+		// swap instead of assigning, buffer's move assignment doesn't free the one it replaces
+		std::swap(b, fresh);
+	}
+	store_vulkan(0);
+	store_vulkan(1);
+}

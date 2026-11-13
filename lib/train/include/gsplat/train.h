@@ -19,6 +19,7 @@ namespace gsplat::train {
 		glm::vec4 background{0, 0, 0, 0};   // rgb, 0..1
 		glm::vec4 intrinsics{0, 0, 0, 0};   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
 		std::string export_path{};
+		int modify_interval = 50;           // epochs between modify_gaussians, 0 turns it off
 	};
 
 	// COLMAP pose to the camera the shaders take
