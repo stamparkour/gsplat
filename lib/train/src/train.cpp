@@ -148,6 +148,7 @@ void gsplat::train::train(shader_store* shaders, database* db, command_queue* q,
 		}
 		if (time_since_last_min_loss > 2) {
 			step_rate *= 0.5;
+			time_since_last_min_loss = 0;
 			std::cout << "learning rate: " << step_rate << std::endl;
 		}
 
