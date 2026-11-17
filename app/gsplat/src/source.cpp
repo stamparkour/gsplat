@@ -1,15 +1,15 @@
 #include <iostream>
-#include <gsplat/vulkan.h>
+//#include <gsplat/vulkan.h>
 #include <gsplat/vulkan/vulkan2.h>
+#include <gsplat/vulkan/memory.h>
 #include <gsplat/core/read_file.h>
-#include <gsplat/data/database.h>
-#include <gsplat/train/shader_store.h>
-#include <gsplat/train.h>
+//#include <gsplat/data/database.h>
+//#include <gsplat/train/shader_store.h>
+//#include <gsplat/train.h>
 
 using namespace gsplat::vulkan;
 
 int main(int argc, char** argv) {
-	std::cout << "Hello World!" << std::endl;
     vulkan_context_config cfg = {
         .project_name = "gsplat",
         .major_version = 1,
@@ -17,9 +17,11 @@ int main(int argc, char** argv) {
         .patch_version = 0
     };
     vulkan_context ctx{cfg};
+    compute_shader_config shader_conf = {"calc_covariance.slang.spv", 2};
+    compute_shader shader{shader_conf};
 
 	// init context
-	vulkan_context_old context{};
+	/*vulkan_context_old context{};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
 		int score = 0;
@@ -66,5 +68,5 @@ int main(int argc, char** argv) {
 		.background{0, 0, 0, 0},   // rgb, 0..1
 		.intrinsics = intrinsics,   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
 		.export_path = path + "/out/"
-	});
+	});*/
 }
