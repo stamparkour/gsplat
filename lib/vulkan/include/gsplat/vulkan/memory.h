@@ -361,6 +361,7 @@ namespace gsplat::vulkan {
 		using size_type = std::size_t;
 	private:
 		size_type size_v = 0;
+		size_type raw_size_v = 0;
 		VkBuffer buffer_v = nullptr;
 		gptr_t raw_data_v = nullptr;
 		buffer(size_type size, VkBuffer buffer_v, gptr_t raw_data_v) : size(size), buffer_v(buffer_v), raw_data_v(raw_data_v) {}
@@ -368,6 +369,7 @@ namespace gsplat::vulkan {
 		buffer() {}
 		buffer(size_type size) {
 			this->size_v = size;
+			this->raw_size_v = size;
 			VkBufferCreateInfo buffer_info{};
 			buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 			buffer_info.size = (VkDeviceSize)size;
@@ -445,16 +447,21 @@ namespace gsplat::vulkan {
 			submitInfo.pCommandBuffers = &commandBuffer;
 
 			// TODO: enqueue to wait somewhere else
-			vkQueueSubmit(vulkan_context::queue().handle, 1, &submitInfo, VK_NULL_HANDLE);
-			vkQueueWaitIdle(vulkan_context::queue().handle); // co_await queue
+			vkQueueSubmit(vulkan_context::queue(), 1, &submitInfo, VK_NULL_HANDLE);
+			vkQueueWaitIdle(vulkan_context::queue()); // co_await queue
 
 			vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
 			co_return;
 		}
 		stamp::task::coroutine<void> resize(size_type new_size) {
+			if (new_size < raw_size_v) {
+				size_v = new_size;
+				return;
+			}
+
 
 		}
-		stamp::task::coroutine<buffer> copy() {
+		stamp::task::coroutine<buffer> copy() const {
 			buffer b{size_v};
 			// TODO: get queue
 			VkCommandBufferAllocateInfo allocInfo{};
@@ -486,12 +493,12 @@ namespace gsplat::vulkan {
 			submitInfo.pCommandBuffers = &commandBuffer;
 
 			// TODO: enqueue to wait somewhere else
-			vkQueueSubmit(vulkan_context::queue().handle, 1, &submitInfo, VK_NULL_HANDLE);
-			vkQueueWaitIdle(queue_handle());
+			vkQueueSubmit(vulkan_context::queue(), 1, &submitInfo, VK_NULL_HANDLE);
+			vkQueueWaitIdle(vulkan_context::queue());
 
 			vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
 
-			co_return b;
+			co_return buffer{std::move(b)};
 		}
 		
 
