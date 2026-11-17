@@ -443,10 +443,10 @@ namespace gsplat::vulkan {
 			submitInfo.pCommandBuffers = &commandBuffer;
 
 			// TODO: enqueue to wait somewhere else
-			vkQueueSubmit(queue_handle(), 1, &submitInfo, VK_NULL_HANDLE);
-			vkQueueWaitIdle(queue_handle()); // co_await queue
+			vkQueueSubmit(vulkan_context::queue().handle, 1, &submitInfo, VK_NULL_HANDLE);
+			vkQueueWaitIdle(vulkan_context::queue().handle); // co_await queue
 
-			vkFreeCommandBuffers(vulkan_context::device(), pool_handle(), 1, &commandBuffer);
+			vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
 			co_return;
 		}
 		stamp::task::coroutine<void> resize(size_type new_size) {
@@ -484,10 +484,10 @@ namespace gsplat::vulkan {
 			submitInfo.pCommandBuffers = &commandBuffer;
 
 			// TODO: enqueue to wait somewhere else
-			vkQueueSubmit(queue_handle(), 1, &submitInfo, VK_NULL_HANDLE);
+			vkQueueSubmit(vulkan_context::queue().handle, 1, &submitInfo, VK_NULL_HANDLE);
 			vkQueueWaitIdle(queue_handle());
 
-			vkFreeCommandBuffers(vulkan_context::device(), pool_handle(), 1, &commandBuffer);
+			vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
 
 			co_return b;
 		}
