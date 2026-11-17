@@ -10,9 +10,6 @@ using namespace gsplat::vulkan;
 
 int main(int argc, char** argv) {
 	std::cout << "Hello World!" << std::endl;
-
-	// init context
-	vulkan_context_old context{};
     vulkan_context_config cfg = {
         .project_name = "gsplat",
         .major_version = 1,
@@ -20,6 +17,9 @@ int main(int argc, char** argv) {
         .patch_version = 0
     };
     vulkan_context ctx{cfg};
+
+	// init context
+	vulkan_context_old context{};
 
 	auto my_physical_device = context.device_collection_sort([](const physical_device* v) -> int {
 		int score = 0;
