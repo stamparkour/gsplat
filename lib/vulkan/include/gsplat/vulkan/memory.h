@@ -6,6 +6,8 @@
 #include <gsplat/core/read_file.h>
 #include <filesystem>
 #include <cstddef>
+#include <utility>
+#include <mutex>
 //#include <stamp/task/stream.h>
 
 // uses cpp coroutine/awaiters
@@ -24,7 +26,6 @@ namespace gsplat::vulkan {
 	gptr_t malloc(std::size_t size, std::size_t align, memory_type);
 	void free(gptr_t);
 
-	template<typename T>
 	class buffer;
 	template<typename T>
 	class buffer_iostream_strand : stamp::task::co_stream_strand {
@@ -49,21 +50,13 @@ namespace gsplat::vulkan {
 		virtual std::size_t do_await_resume();
 	};
 
-	template<typename T>
 	class buffer {
 	public:
-		using value_type = T;
 		using size_type = std::size_t;
-		using pointer = T*;
-		using const_pointer = const T*;
-		using reference = T&;
-		using const_reference = const T&;
 	private:
 	public:
 		buffer();
-		buffer();
 		buffer(size_type size);
-		buffer(size_type size, const_reference default_value);
 		// copy buffer in different memory type
 		~buffer();
 		buffer(const buffer&);
@@ -81,7 +74,6 @@ namespace gsplat::vulkan {
 		// awaiter
 		auto resize(size_type new_size);
 
-		buffer_iostream_strand co_iostream_strand();
 	};
 
 	using image_storage_t = int;
@@ -103,10 +95,31 @@ namespace gsplat::vulkan {
 		VkImage handle();
 	};
 
+    // Returns the path of the program executable since current working directory
+    // may not be the actual path of the executable.
+    std::filesystem::path executable_path() {
+        // Cross-compatible code generated with help of claude. Some platforms untested.
+        #ifdef _WIN32
+            #include <windows.h>
+            wchar_t buf[MAX_PATH];
+            DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
+            return std::filesystem::path(std::wstring(buf, n));
+        #elif defined(__APPLE__)
+            #include <mach-o/dyld.h>
+            uint32_t size = 0;
+            _NSGetExecutablePath(nullptr, &size);
+            std::string buf(size, '\0');
+            _NSGetExecutablePath(buf.data(), &size);
+            return std::filesystem::canonical(buf.c_str());
+        #else
+            return std::filesystem::canonical("/proc/self/exe");
+        #endif
+    }
+
     struct compute_shader_config {
         const std::string& file_name;
         int storage_buffer_count;
-        const std::string shader_dir = (std::filesystem::current_path() / "shaders").string();
+        const std::string shader_dir = (executable_path().parent_path() / "shaders").string();
     };
 
     class compute_shader {
@@ -115,6 +128,8 @@ namespace gsplat::vulkan {
         VkShaderModule shader_v;
         VkPipeline pipeline_v;
         VkDescriptorSet descriptor_v;
+        VkFence fence_v;
+        std::mutex invoke_mtx_v;
     public:
         compute_shader() {
 
@@ -219,8 +234,51 @@ namespace gsplat::vulkan {
                 throw std::runtime_error("Could not allocate descriptor sets. Vk Code: " + std::to_string(r));
             }
 
+            VkFenceCreateInfo fence_ci = {
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0
+            };
+
+            VkFence fence;
+            if (VkResult r = vkCreateFence(vulkan_context::device(), &fence_ci, nullptr, &fence_v);
+                r != VK_SUCCESS
+            ) {
+                throw std::runtime_error("Could not create fence for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
         }
         ~compute_shader() {
+            destroy();
+        }
+
+        compute_shader(const compute_shader&) = delete;
+        compute_shader& operator =(const compute_shader&) = delete;
+        compute_shader(compute_shader&& o) noexcept
+            : desc_layout_v(std::exchange(o.desc_layout_v, VK_NULL_HANDLE)),
+              pipeline_layout_v(std::exchange(o.pipeline_layout_v, VK_NULL_HANDLE)),
+              shader_v(std::exchange(o.shader_v, VK_NULL_HANDLE)),
+              pipeline_v(std::exchange(o.pipeline_v, VK_NULL_HANDLE)),
+              descriptor_v(std::exchange(o.descriptor_v, VK_NULL_HANDLE)),
+              fence_v(std::exchange(o.fence_v, VK_NULL_HANDLE)) {}
+        compute_shader& operator =(compute_shader&& o) noexcept {
+            if (this != &o) {
+                destroy();
+                desc_layout_v = std::exchange(o.desc_layout_v, VK_NULL_HANDLE);
+                pipeline_layout_v = std::exchange(o.pipeline_layout_v, VK_NULL_HANDLE);
+                shader_v = std::exchange(o.shader_v, VK_NULL_HANDLE);
+                pipeline_v = std::exchange(o.pipeline_v, VK_NULL_HANDLE);
+                descriptor_v = std::exchange(o.descriptor_v, VK_NULL_HANDLE);
+                fence_v = std::exchange(o.fence_v, VK_NULL_HANDLE);
+            }
+            return *this;
+        }
+
+        void destroy() noexcept {
+            if (fence_v) {
+                vkDestroyFence(vulkan_context::device(), fence_v, nullptr);
+                fence_v = VK_NULL_HANDLE;
+            }
             if (descriptor_v) {
                 vkFreeDescriptorSets(vulkan_context::device(), vulkan_context::descriptor_pool(), 1, &descriptor_v);
                 descriptor_v = VK_NULL_HANDLE;
@@ -241,24 +299,100 @@ namespace gsplat::vulkan {
                 vkDestroyDescriptorSetLayout(vulkan_context::device(), desc_layout_v, nullptr);
                 desc_layout_v = VK_NULL_HANDLE;
             }
-
         }
 
-        compute_shader(const compute_shader&) = delete;
-        compute_shader(compute_shader&&) {
-
-        }
-        compute_shader& operator =(const compute_shader&) = delete;
-        compute_shader& operator =(compute_shader&&) {
-
-        }
-
-        template<typename T>
-        void bind(int binding, const buffer<T>&) {
-
+        void bind(int binding, const buffer& b) {
+            VkDescriptorBufferInfo buf_info = {
+                .buffer = b.handle(),
+                .offset = 0,
+                .range = b.size()
+            };
+            VkWriteDescriptorSet buf_write = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = descriptor_v, // shaders' desc set
+                .dstBinding = (uint32_t)binding,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                .pImageInfo = nullptr,
+                .pBufferInfo = &buf_info,
+                .pTexelBufferView = nullptr
+            };
+            vkUpdateDescriptorSets(vulkan_context::device(), 1, &buf_write, 0, nullptr);
         }
         void invoke(int x, int y, int z) {
+            std::lock_guard lock(invoke_mtx_v);
+            VkCommandBufferAllocateInfo cmd_ai = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                .pNext = nullptr,
+                .commandPool = vulkan_context::command_pool(),
+                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                .commandBufferCount = 1
+            };
 
+            VkCommandBuffer cmd_buf;
+            if (VkResult r = vkAllocateCommandBuffers(vulkan_context::device(), &cmd_ai, &cmd_buf);
+                r != VK_SUCCESS
+            ) {
+                throw std::runtime_error("Could not allocate command buffer for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
+            VkCommandBufferBeginInfo cmd_begin = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .pInheritanceInfo = nullptr
+            };
+
+            if (VkResult r = vkBeginCommandBuffer(cmd_buf, &cmd_begin); r != VK_SUCCESS) {
+                throw std::runtime_error("Could not begin recording command buffer for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
+            vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_v);
+            vkCmdBindDescriptorSets(
+                cmd_buf,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                pipeline_layout_v,
+                0, 1,
+                &descriptor_v,
+                0, 0
+            );
+            vkCmdDispatch(cmd_buf, x, y, z);
+            if (VkResult r = vkEndCommandBuffer(cmd_buf); r != VK_SUCCESS) {
+                throw std::runtime_error("Could not end command buffer for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
+            VkSubmitInfo submit_info = {
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .waitSemaphoreCount = 0,
+                .pWaitSemaphores = nullptr,
+                .pWaitDstStageMask = nullptr,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &cmd_buf,
+                .signalSemaphoreCount = 0,
+                .pSignalSemaphores = nullptr
+            };
+
+            if (VkResult r = vkResetFences(vulkan_context::device(), 1, &fence_v);
+                r != VK_SUCCESS
+            ) {
+                throw std::runtime_error("Could not reset fence for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
+            if (VkResult r = vkQueueSubmit(vulkan_context::queue(), 1, &submit_info, fence_v);
+                r != VK_SUCCESS
+            ) {
+                throw std::runtime_error("Could not submit queue for shader pipeline. Vk Code: " + std::to_string(r));
+            }
+
+            if (VkResult r = vkWaitForFences(vulkan_context::device(), 1, &fence_v, VK_TRUE, UINT64_MAX);
+                r < VK_SUCCESS
+            ) {
+                throw std::runtime_error("Error waiting for shader pipeline to finish. Vk Code: " + std::to_string(r));
+            }
+            vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &cmd_buf);
         }
     };
 }
