@@ -2,11 +2,11 @@ include(FetchContent)
 
 #source files
 set(PROJECT_SOURCES
-	"src/render.cpp"
+	"src/viewer.cpp"
 )
 set(PROJECT_HEADERS
 	"include/gsplat/render.h"
-	"include/gsplat/render/entry.h"
+	"include/gsplat/render/viewer.h"
 )
 
 # add the library
