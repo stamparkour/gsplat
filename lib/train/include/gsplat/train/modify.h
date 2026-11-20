@@ -1,10 +1,15 @@
 #ifndef GSPLAT_TRAIN_MODIFY_H
 #define GSPLAT_TRAIN_MODIFY_H
 
-#include <gsplat/data/database.h>
+#include <gsplat/data/gaussian.h>
+#include <stamp/task/coroutine.h>
 #include <random>
 #include <span>
 #include <vector>
+
+namespace gsplat::vulkan {
+	class buffer;
+}
 
 // adaptive density control, section 5.2 of the 3DGS paper (Kerbl et al. 2023)
 namespace gsplat::train {
@@ -19,7 +24,7 @@ namespace gsplat::train {
 	void remove_gaussians(std::vector<gsplat::data::gaussian>& gaussians);
 
 	// pulls the gaussians off the GPU, splits, removes, and puts them back at the new size
-	void modify_gaussians(gsplat::data::database* db, std::span<const float> grad, float scene_extent, std::mt19937& rng);
+	stamp::task::coroutine<void> modify_gaussians(gsplat::vulkan::buffer& gaussians, std::span<const float> grad, float scene_extent, std::mt19937& rng);
 }
 
 #endif // GSPLAT_TRAIN_MODIFY_H

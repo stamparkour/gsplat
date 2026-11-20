@@ -2,7 +2,9 @@
 #define GSPLAT_TRAIN_H
 
 #include <gsplat/train/shader_store.h>
+#include <gsplat/data/database.h>
 #include <stamp/task/coroutine.h>
+#include <vector>
 
 namespace gsplat::train {
 	// what project_gaussians and project_backwards take
@@ -29,10 +31,16 @@ namespace gsplat::train {
 	// called once per epoch with the mean loss over that epoch's images
 	void record_epoch_loss(int epoch, float loss);
 
-	// trains the database's gaussians in place, on the GPU
-	stamp::task::coroutine<void> train(shader_store* shaders, gsplat::data::database* db, gsplat::vulkan::command_queue* q, const train_settings& ts = {});
+	// trains the database's gaussians on the GPU, then writes them back into
+	// db->gaussian_set().data(). only that vector of gaussian_set is used, none
+	// of its buffers. call .resume() once to run it, every buffer call in it
+	// finishes before returning, so it runs to the end. (stamp::task::wait_for
+	// hangs, its lambda coroutine captures by reference and outlives the lambda.)
+	// ts is taken by value so it lives in the coroutine, not with the caller.
+	stamp::task::coroutine<void> train(shader_store* shaders, gsplat::data::database* db, train_settings ts = {});
 
-	void export_png(const std::string& out_path, gsplat::vulkan::array_buffer<glm::vec4>* buf, int width, int height);
+	// pixels is one rgba per pixel, 0..1
+	void export_png(const std::string& out_path, const std::vector<glm::vec4>& pixels, int width, int height);
 
 	stamp::task::coroutine<void> epoch(gsplat::data::database* db, const train_settings& ts = {});
 }

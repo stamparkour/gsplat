@@ -54,11 +54,11 @@ int main(int argc, char** argv) {
 
 	std::cout << "loading shaders" << std::endl;
 	// load shaders
-	gsplat::train::shader_store shaders{std::string{"shaders"}, &db, my_queue};
+	gsplat::train::shader_store shaders{std::string{"shaders"}};
 
 	std::cout << "training!" << std::endl;
 
-	gsplat::train::train(&shaders, &db, my_queue, gsplat::train::train_settings{
+	auto training = gsplat::train::train(&shaders, &db, gsplat::train::train_settings{
 		.epochs = 300,
 		.images_per_step = 5,            // images whose gradients add up before one apply_gradient
 		.learning_rate = 10.0f,         // plain SGD, so this depends on the scene
@@ -67,4 +67,5 @@ int main(int argc, char** argv) {
 		.intrinsics = intrinsics,   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
 		.export_path = path + "/out/"
 	});
+	training.resume();
 }
