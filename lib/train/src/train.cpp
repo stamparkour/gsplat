@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <stb_image_write.h>
+#include <algorithm>
 #include <limits>
 #include <random>
 
@@ -62,6 +63,8 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 	if (images.empty()) throw std::runtime_error("train: no images in the database");
 	if (ts.intrinsics.x <= 0 || ts.intrinsics.y <= 0) throw std::runtime_error("train: set train_settings::intrinsics (fx, fy, cx, cy), nothing loads cameras.txt yet");
 	if (ts.images_per_step < 1) throw std::runtime_error("train: images_per_step must be at least 1");
+	if (ts.sh_degree < 0 || ts.sh_degree > 3) throw std::runtime_error("train: sh_degree goes from 0 (off) to 3");
+	if (ts.sh_degree > 0 && ts.sh_interval < 1) throw std::runtime_error("train: sh_interval must be at least 1");
 
 	int n = (int)db->gaussian_set().data().size();
 	if (n == 0) throw std::runtime_error("train: no gaussians in the database");
@@ -117,15 +120,39 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 	const float extent = scene_extent(cameras);
 	std::mt19937 rng{0}; // fixed seed so runs repeat
 
+	// spherical harmonics wait until the gaussian count is final (after the
+	// last modify_gaussians), so the coefficients never have to follow a split
+	// or a removal, then go up one degree every sh_interval epochs. with
+	// sh_degree = 0 none of the sh shaders run and nothing below changes.
+	const int sh_start = std::max(last_modify, ts.sh_interval);
+	auto sh_degree_at = [&](int epoch) {
+		return (ts.sh_degree == 0 || epoch < sh_start) ? 0 : std::min(ts.sh_degree, 1 + (epoch - sh_start) / ts.sh_interval);
+	};
+	std::vector<glm::vec3> centers;
+	for (auto& c : cameras) centers.push_back(glm::vec3(glm::inverse(c.world_to_camera)[3]));
+	buffer sh, sh_grads, base_rgb; // made when the first degree turns on
+
 	for (int epoch = 0; epoch < ts.epochs; epoch++) {
+		const int sh_deg = sh_degree_at(epoch);
+		if (sh_deg > 0 && sh_degree_at(epoch - 1) == 0) {
+			sh = co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f)); // SH_STRIDE in sh_math.h
+			sh_grads = co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f));
+			base_rgb = buffer{n * sizeof(glm::vec4)};
+		}
+		if (sh_deg != sh_degree_at(epoch - 1)) {
+			std::cout << "sh degree " << sh_deg << std::endl;
+		}
+
 		float epoch_loss = 0;
 		for (int k = 0; k < (int)images.size(); k++) {
 			camera& cam = cameras[k];
 			if (images_in_step == 0) {
 				co_await gradients.clear();
+				if (sh_deg > 0) co_await sh_grads.clear();
 			}
 
-			// forward
+			// forward. sh_forward puts this camera's colors into gaussians until sh_backward
+			if (sh_deg > 0) co_await shaders->sh_forward(centers[k], sh_deg, gaussians, sh, base_rgb);
 			co_await shaders->calc_covariance(gaussians);
 			co_await shaders->project_gaussians(cam.world_to_camera, cam.intrinsics, cam.limits, gaussians, gaussians_2d);
 			co_await shaders->sort_gaussians(gaussians_2d, sorted_index);
@@ -141,6 +168,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 			// they start from zero every image. gradients are 3D and keep adding up.
 			co_await raster_grads.clear();
 			co_await shaders->raster_backwards(width, height, background, ts.near_plane, gaussians_2d, gaussians, sorted_index, pixel_states, dL_dC, raster_grads);
+			if (sh_deg > 0) co_await shaders->sh_backward(centers[k], sh_deg, gaussians, base_rgb, sh, raster_grads, sh_grads, gradients);
 			co_await shaders->project_backwards(cam.world_to_camera, cam.intrinsics, cam.limits, gaussians, raster_grads, gradients);
 
 			if (epoch < last_modify) {
@@ -159,6 +187,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 
 			if (++images_in_step == ts.images_per_step) {
 				co_await shaders->apply_gradient(step_rate, gaussians, gradients);
+				if (sh_deg > 0) co_await shaders->sh_apply(step_rate * ts.sh_rate_scale, sh, sh_grads);
 				images_in_step = 0;
 			}
 		}
@@ -182,6 +211,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 
 		// only in the first half of training, like the paper (densifies until 15k of 30k iterations)
 		if (modify_on && (epoch + 1) % ts.modify_interval == 0 && epoch + 1 <= ts.epochs / 2) {
+			if (sh_deg > 0) throw std::runtime_error("train: modify_gaussians ran after spherical harmonics started");
 			std::vector<float> grad(n);
 			for (int i = 0; i < n; i++) grad[i] = grad_views[i] > 0 ? grad_sum[i] / grad_views[i] : 0.0f;
 

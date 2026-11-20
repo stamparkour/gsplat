@@ -392,7 +392,7 @@ dL/dsh_i = C0 dL/dcolor_i       0 on channels where C0 sh_i + 0.5 < 0
 
 At degree 0 the color doesn't depend on the view direction, so there's no `dL/dmu` term.
 
-**Degree 1 to 3 (should tier):** TODO. The basis depends on `dir = normalize(mu - cam_pos)`, so `dL/dmu += (I - dir dir^T) dL/ddir / |mu - cam_pos|`, the same normalization shape as the quaternion in section 6. What's left is `dL/ddir` for each basis function.
+**Degree 1 to 3:** the kernels keep degree 0 as the plain rgb and add `sum_k sh_k Y_k(dir)` on top, `dir = normalize(mu - cam_pos)`, no clamp. Then `dL/dsh_k = Y_k(dir) dL/dcolor` and `dL/dmu += (I - dir dir^T) dL/ddir / |mu - cam_pos|`, the same normalization shape as the quaternion in section 6, with `dL/ddir = sum_k (sh_k . dL/dcolor) dY_k/ddir`. The 15 basis functions and their derivatives are in `lib/shaders/src/sh_math.h`, and `tools/check_sh.py` checks them against finite differences.
 
 **Check:** `python3 tools/check_color.py`
 

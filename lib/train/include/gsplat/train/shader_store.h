@@ -18,7 +18,9 @@ namespace gsplat::train {
 	// buffers by type: gaussians and gradients hold gsplat::data::gaussian,
 	// gaussians_2d holds gsplat::data::gaussian2d, sorted_index holds int,
 	// raster_grads holds 9 floats per gaussian, images hold glm::vec4 per pixel,
-	// target images hold one rgba8 pixel (gsplat::data::pixel) per uint32.
+	// target images hold one rgba8 pixel (gsplat::data::pixel) per uint32,
+	// sh and sh_grads hold 45 floats per gaussian (SH_STRIDE in sh_math.h),
+	// base_rgb holds one glm::vec4 per gaussian.
 	class shader_store {
 		gsplat::vulkan::compute_shader calc_covariance_sp;
 		gsplat::vulkan::compute_shader apply_gradient_sp;
@@ -28,6 +30,9 @@ namespace gsplat::train {
 		gsplat::vulkan::compute_shader raster_backwards_sp;
 		gsplat::vulkan::compute_shader raster_forward_sp;
 		gsplat::vulkan::compute_shader sort_gaussians_sp;
+		gsplat::vulkan::compute_shader sh_forward_sp;
+		gsplat::vulkan::compute_shader sh_backward_sp;
+		gsplat::vulkan::compute_shader sh_apply_sp;
 	public:
 		explicit shader_store(const std::string& shader_dir);
 
@@ -107,6 +112,31 @@ namespace gsplat::train {
 			const gsplat::vulkan::buffer& gaussians,
 			const gsplat::vulkan::buffer& raster_grads,
 			gsplat::vulkan::buffer& gradients);
+
+		// spherical harmonics, only used while train_settings::sh_degree > 0.
+		// saves the plain rgb in base_rgb, then adds the color seen from
+		// camera_center to every gaussian's rgb. run it before project_gaussians,
+		// the raster shaders pick the colors up from gaussians unchanged.
+		stamp::task::coroutine<void> sh_forward(
+			const glm::vec3& camera_center,
+			int degree,
+			gsplat::vulkan::buffer& gaussians,
+			const gsplat::vulkan::buffer& sh,
+			gsplat::vulkan::buffer& base_rgb);
+		// puts the plain rgb back, ADDS dL/dsh into sh_grads and the view
+		// direction's part of dL/dmean into gradients. run it after
+		// raster_backwards, with the camera_center and degree sh_forward got.
+		stamp::task::coroutine<void> sh_backward(
+			const glm::vec3& camera_center,
+			int degree,
+			gsplat::vulkan::buffer& gaussians,
+			const gsplat::vulkan::buffer& base_rgb,
+			const gsplat::vulkan::buffer& sh,
+			const gsplat::vulkan::buffer& raster_grads,
+			gsplat::vulkan::buffer& sh_grads,
+			gsplat::vulkan::buffer& gradients);
+		// sh -= learning_rate * sh_grads
+		stamp::task::coroutine<void> sh_apply(float learning_rate, gsplat::vulkan::buffer& sh, const gsplat::vulkan::buffer& sh_grads);
 	};
 }
 

@@ -28,6 +28,19 @@ Two buffers hold gradients, and they're cleared at different times.
 
 `raster_forward` and `raster_backward` need `project_gaussians` to write, per gaussian: `mean` in **pixels** (`fx tx/tz + cx`, `fy ty/tz + cy`), `covariance_inv` = inverse of `J W Σ Wᵀ Jᵀ + 0.3 I` (backward.pdf section 4), and `depth` = `t.z`. `splat_math.h` has every piece of that: `to_camera`, `projection_jacobian`, `covariance2d`, `inverse2x2`, `project_mean`. If `project_gaussians` takes the same settings struct as `project_backward` (camera + count), one settings buffer per image serves both.
 
+## Spherical harmonics (off by default)
+
+View dependent color, degrees 1 to 3, behind `train_settings::sh_degree` (0 = off, the default). With it off none of the shaders below run and the loop above is unchanged. Basis and gradient are in `lib/shaders/src/sh_math.h`, coefficient layout too (45 floats per gaussian, degree 0 stays the gaussian's own rgb).
+
+| when | shader | threads | reads | writes |
+|:---|:---|:---|:---|:---|
+| start of step | `sh_grads.clear()` | | | |
+| each image, before 3 | `sh_forward` | gaussians | gaussians, sh, camera center | saves rgb in base_rgb, adds this camera's color to gaussians' rgb |
+| each image, after 8 | `sh_backward` | gaussians | base_rgb, sh, raster_grads | puts rgb back, adds into sh_grads and gradients' mean |
+| end of step | `sh_apply` | 45 x gaussians | sh_grads | sh |
+
+The raster shaders read color from `gaussians`, so they pick up the camera's colors without any change. `sh_backward` restores the rgb bit for bit. The coefficients start once `modify_gaussians` is done for good, so they never have to follow a split or a removal, then the degree goes up one every `sh_interval` epochs. They step at `sh_rate_scale` (1/20) times the learning rate. They live on the GPU only, `gaussian_set` doesn't store them.
+
 ## Bindings
 
 | shader | binding order |
@@ -122,3 +135,5 @@ createInfo.ppEnabledExtensionNames = device_extensions;
 python3 -m venv ~/.venvs/gsplat && ~/.venvs/gsplat/bin/pip install slangpy numpy
 ~/.venvs/gsplat/bin/python tools/test_shaders.py            # picks a discrete GPU, else llvmpipe
 ```
+
+`tools/test_sh.py` does the same for `sh_forward`, `sh_backward` and `sh_apply` against `tools/check_sh.py`, including that the rgb comes back bit for bit. It also runs with `--backend cpu` (Slang's CPU target, no GPU needed).

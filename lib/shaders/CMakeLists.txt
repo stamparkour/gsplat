@@ -17,6 +17,9 @@ set(SLANG_COMPUTE_SOURCES
     "src/loss_l1.slang"
     "src/raster_backward.slang"
     "src/project_backward.slang"
+    "src/sh_forward.slang"
+    "src/sh_backward.slang"
+    "src/sh_apply.slang"
 )
 
 # Ensure shaders directory exists

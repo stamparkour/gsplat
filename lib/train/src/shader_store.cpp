@@ -27,7 +27,10 @@ shader_store::shader_store(const std::string& shader_dir) :
 	project_backwards_sp{compute_shader_config{shader_dir + "/project_backward.slang.spv", 4}},
 	raster_backwards_sp{compute_shader_config{shader_dir + "/raster_backward.slang.spv", 7}},
 	raster_forward_sp{compute_shader_config{shader_dir + "/raster_forward.slang.spv", 6}},
-	sort_gaussians_sp{compute_shader_config{shader_dir + "/sort_gaussians.slang.spv", 3}} {
+	sort_gaussians_sp{compute_shader_config{shader_dir + "/sort_gaussians.slang.spv", 3}},
+	sh_forward_sp{compute_shader_config{shader_dir + "/sh_forward.slang.spv", 4}},
+	sh_backward_sp{compute_shader_config{shader_dir + "/sh_backward.slang.spv", 7}},
+	sh_apply_sp{compute_shader_config{shader_dir + "/sh_apply.slang.spv", 3}} {
 }
 
 stamp::task::coroutine<void> shader_store::calc_covariance(buffer& gaussians) {
@@ -208,4 +211,62 @@ stamp::task::coroutine<void> shader_store::raster_backwards(
 	raster_backwards_sp.bind<float>(5, raster_grads_out);
 	raster_backwards_sp.bind<settings_t>(6, settings);
 	raster_backwards_sp.invoke(groups(width * height), 1, 1);
+}
+
+// sh_forward and sh_backward take the same settings
+struct sh_settings_t {
+	glm::vec4 camera_center; // w unused
+	int gaussian_count;
+	int degree;
+	int pad0;
+	int pad1;
+};
+
+stamp::task::coroutine<void> shader_store::sh_forward(const glm::vec3& camera_center, int degree, buffer& gaussians, const buffer& sh, buffer& base_rgb) {
+	int n = gaussian_count(gaussians);
+	buffer settings = co_await buffer::from_vector(std::vector{sh_settings_t{glm::vec4(camera_center, 0.0f), n, degree, 0, 0}});
+
+	sh_forward_sp.bind<gaussian>(0, gaussians);
+	sh_forward_sp.bind<float>(1, sh);
+	sh_forward_sp.bind<glm::vec4>(2, base_rgb);
+	sh_forward_sp.bind<sh_settings_t>(3, settings);
+	sh_forward_sp.invoke(groups(n), 1, 1);
+}
+
+stamp::task::coroutine<void> shader_store::sh_backward(
+	const glm::vec3& camera_center,
+	int degree,
+	buffer& gaussians,
+	const buffer& base_rgb,
+	const buffer& sh,
+	const buffer& raster_grads,
+	buffer& sh_grads,
+	buffer& gradients) {
+
+	int n = gaussian_count(gaussians);
+	buffer settings = co_await buffer::from_vector(std::vector{sh_settings_t{glm::vec4(camera_center, 0.0f), n, degree, 0, 0}});
+
+	sh_backward_sp.bind<gaussian>(0, gaussians);
+	sh_backward_sp.bind<glm::vec4>(1, base_rgb);
+	sh_backward_sp.bind<float>(2, sh);
+	sh_backward_sp.bind<float>(3, raster_grads);
+	sh_backward_sp.bind<float>(4, sh_grads);
+	sh_backward_sp.bind<gaussian>(5, gradients);
+	sh_backward_sp.bind<sh_settings_t>(6, settings);
+	sh_backward_sp.invoke(groups(n), 1, 1);
+}
+
+stamp::task::coroutine<void> shader_store::sh_apply(float learning_rate, buffer& sh, const buffer& sh_grads) {
+
+	struct settings_t {
+		float learning_rate;
+		int count;
+	};
+	int count = (int)(sh.size() / sizeof(float));
+	buffer settings = co_await buffer::from_vector(std::vector{settings_t{learning_rate, count}});
+
+	sh_apply_sp.bind<float>(0, sh);
+	sh_apply_sp.bind<float>(1, sh_grads);
+	sh_apply_sp.bind<settings_t>(2, settings);
+	sh_apply_sp.invoke(groups(count), 1, 1);
 }

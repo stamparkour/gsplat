@@ -23,6 +23,9 @@ namespace gsplat::train {
 		glm::vec4 intrinsics{0, 0, 0, 0};   // fx, fy, cx, cy in pixels of the loaded images. TODO: cameras.txt, once the database loads it
 		std::string export_path{};
 		int modify_interval = 50;           // epochs between modify_gaussians, 0 turns it off
+		int sh_degree = 0;                  // view dependent color up to this degree (1 to 3), 0 turns it off
+		int sh_interval = 50;               // epochs between degree steps, the first waits for the last modify_gaussians
+		float sh_rate_scale = 0.05f;        // the sh coefficients step at this times the learning rate (3DGS uses 1/20)
 	};
 
 	// COLMAP pose to the camera the shaders take
