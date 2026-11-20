@@ -1,3 +1,5 @@
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <gsplat/vulkan/vulkan2.h>
 #include <stdexcept>
 #include <string>
@@ -33,6 +35,9 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     };
+    std::vector<const char*> glfw_exts = get_glfw_extensions();
+    // Append glfw extensions
+    exts.insert(exts.end(), glfw_exts.begin(), glfw_exts.end());
     instance_v = create_instance(app_info, layers, exts, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR);
 
     device_criteria criteria{};
@@ -108,7 +113,7 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // Previous vulkan_context had incorrect update after bind bit
-        // Each shader needs a set if using buffers. Since the number of shaders is unknown 16 is used as placeholder
+// Each shader needs a set if using buffers. Since the number of shaders is unknown 16 is used as placeholder
         .maxSets = 16,
         .poolSizeCount = 1,
         .pPoolSizes = &desc_pool_size_ci
@@ -347,6 +352,16 @@ std::vector<VkExtensionProperties> gsplat::vulkan::get_available_extensions(cons
         r < VK_SUCCESS
     ) {
         throw std::runtime_error("Could not get available extensions of Vulkan instance. Vk Code: " + std::to_string(r));
+    }
+    return exts;
+}
+
+std::vector<const char*> gsplat::vulkan::get_glfw_extensions() {
+    uint32_t ext_count = 0;
+    const char** exts_ptr = glfwGetRequiredInstanceExtensions(&ext_count);
+    std::vector<const char*> exts(ext_count);
+    for (int i = 0; i < ext_count; i++) {
+        exts.push_back(exts_ptr[i]);
     }
     return exts;
 }

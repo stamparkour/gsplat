@@ -66,6 +66,7 @@ namespace gsplat::vulkan {
     VkPhysicalDevice create_physical_device(VkInstance instance, const device_criteria& criteria);
     uint32_t find_queue_family_index(VkPhysicalDevice device, VkQueueFlags required_queues);
     std::vector<VkExtensionProperties> get_available_extensions(const char* layer_name);
+    std::vector<const char*> get_glfw_extensions();
     std::vector<VkLayerProperties> get_available_layers();
     std::vector<VkExtensionProperties> get_available_device_extensions(VkPhysicalDevice device, const char* layer_name);
 
