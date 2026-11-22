@@ -1,7 +1,7 @@
 #ifndef GSPLAT_TRAIN_SHADER_STORE_H
 #define GSPLAT_TRAIN_SHADER_STORE_H
 
-#include <gsplat/vulkan/shader.h>
+#include <gsplat/vulkan/memory.h>
 #include <gsplat/data/database.h>
 #include <gsplat/core/read_file.h>
 #include <string>
@@ -17,22 +17,14 @@ namespace gsplat::train {
 
 		gsplat::data::database* database_v;
 
-		gsplat::vulkan::shader calc_covariance_s;
-		gsplat::vulkan::compute_shader_pipeline calc_covariance_sp;
-		gsplat::vulkan::shader apply_gradient_s;
-		gsplat::vulkan::compute_shader_pipeline apply_gradient_sp;
-		gsplat::vulkan::shader loss_l1_s;
-		gsplat::vulkan::compute_shader_pipeline loss_l1_sp;
-		gsplat::vulkan::shader project_gaussians_s;
-		gsplat::vulkan::compute_shader_pipeline project_gaussians_sp;
-		gsplat::vulkan::shader project_backwards_s;
-		gsplat::vulkan::compute_shader_pipeline project_backwards_sp;
-		gsplat::vulkan::shader raster_backwards_s;
-		gsplat::vulkan::compute_shader_pipeline raster_backwards_sp;
-		gsplat::vulkan::shader raster_forward_s;
-		gsplat::vulkan::compute_shader_pipeline raster_forward_sp;
-		gsplat::vulkan::shader sort_gaussians_s;
-		gsplat::vulkan::compute_shader_pipeline sort_gaussians_sp;
+		gsplat::vulkan::compute_shader calc_covariance_s;
+		gsplat::vulkan::compute_shader apply_gradient_s;
+		gsplat::vulkan::compute_shader loss_l1_s;
+		gsplat::vulkan::compute_shader project_gaussians_s;
+		gsplat::vulkan::compute_shader project_backwards_s;
+		gsplat::vulkan::compute_shader raster_backwards_s;
+		gsplat::vulkan::compute_shader raster_forward_s;
+		gsplat::vulkan::compute_shader sort_gaussians_s;
 	public:
 		shader_store(const std::string& shader_dir, gsplat::data::database* db, gsplat::vulkan::command_queue* q);
 

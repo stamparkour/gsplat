@@ -55,7 +55,7 @@ void gsplat::train::record_epoch_loss(int epoch, float loss) {
 	std::cout << "epoch " << epoch << "  loss " << loss << std::endl;
 }
 
-stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, database* db, command_queue* q, const train_settings& ts_1) {
+stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, database* db, const train_settings& ts_1) {
 	train_settings ts = ts_1;
 	auto& images = db->image_set().data();
 	if (images.empty()) throw std::runtime_error("train: no images in the database");
@@ -163,15 +163,14 @@ void my_write_func(void* context, void* data, int size) {
 	stream->write((const char*)data, size);
 }
 
-void gsplat::train::export_png(const std::string& out_path, gsplat::vulkan::array_buffer<glm::vec4>* buf, int width, int height) {
+void gsplat::train::export_png(const std::string& out_path, gsplat::vulkan::buffer* buf, int width, int height) {
 	std::vector<unsigned char> vec{};
 	vec.resize(width * height * 4);
 
 	{
-		auto l = buf->memory_lock();
-		int s = buf->size();
-		for (std::size_t i = 0; i < s; i++) {
-			glm::vec4 v = l.data()[i];
+		auto l = buf.to_vector<glm::vec4>()
+		for (std::size_t i = 0; i < l.size(); i++) {
+			glm::vec4 v = l[i];
 			v.x = std::clamp<float>(v.x, 0, 1);
 			v.y = std::clamp<float>(v.y, 0, 1);
 			v.z = std::clamp<float>(v.z, 0, 1);

@@ -13,7 +13,7 @@ struct camera_intrinsics {
 	float fx, fy, cx, cy;
 };
 
-image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, gsplat::vulkan::command_queue* q, int max_entries) {
+image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, int max_entries) {
 	image_set o{};
 
 	std::ifstream file2{cameras_txt_path};

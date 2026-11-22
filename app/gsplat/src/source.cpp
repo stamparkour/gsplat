@@ -8,6 +8,17 @@
 //#include <gsplat/train.h>
 
 using namespace gsplat::vulkan;
+using namespace stamp::task;
+
+coroutine<void> co_main() {
+	std::vector<int> vec1{
+		{1,2,3,4,5}
+	};
+	buffer b = std::move(co_await buffer::from_vector(vec1));
+	std::vector<int> vec2 = co_await b.to_vector<int>();
+
+	co_return;
+}
 
 int main(int argc, char** argv) {
     vulkan_context_config cfg = {
@@ -17,7 +28,12 @@ int main(int argc, char** argv) {
         .patch_version = 0
     };
     vulkan_context ctx{cfg};
-    compute_shader_config shader_conf = {"calc_covariance.slang.spv", 2};
+	vulkan_memory_manager memory{};
+
+	co_main().resume();
+	
+
+    compute_shader_config shader_conf = {"calc_covariance.slang.spv", "", 2};
     compute_shader shader{shader_conf};
 
 	// init context

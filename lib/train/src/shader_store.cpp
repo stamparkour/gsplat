@@ -3,62 +3,38 @@
 using namespace gsplat::train;
 using namespace gsplat::vulkan;
 using namespace gsplat::core;
+using namespace stamp::task;
 
-shader_store::shader_store(const std::string& shader_dir, gsplat::data::database* db, gsplat::vulkan::command_queue* q) {
+shader_store::shader_store(const std::string& shader_dir, gsplat::data::database* db) {
 	this->database_v = db;
 
 	std::vector<char> vec;
 
-	vec = load_entire_file_binary(shader_dir + "/calc_covariance.slang.spv");
-
-	calc_covariance_s = gsplat::vulkan::shader{
-		gsplat::vulkan::shader_creation_settings{
-			.file_ptr = vec.data(),
-			.file_size = vec.size(),
-			.device = q->logical_device().get()
-		}
-	};
-	calc_covariance_sp = gsplat::vulkan::compute_shader_pipeline{
-		gsplat::vulkan::compute_shader_pipeline_settings{
+	calc_covariance_s = gsplat::vulkan::compute_shader{
+		gsplat::vulkan::compute_shader_config{
+			.file_name = "/calc_covariance.slang.spv",
+			.shader_dir = shader_dir,
 			.storage_buffer_count = 2,
-			.queue = q,
-			.shader = &calc_covariance_s
 		}
 	};
 
-	vec = load_entire_file_binary(shader_dir + "/apply_gradient.slang.spv");
-
-	apply_gradient_s = gsplat::vulkan::shader{
-		gsplat::vulkan::shader_creation_settings{
-			.file_ptr = vec.data(),
-			.file_size = vec.size(),
-			.device = q->logical_device().get()
-		}
-	};
-	apply_gradient_sp = gsplat::vulkan::compute_shader_pipeline{
-		gsplat::vulkan::compute_shader_pipeline_settings{
-			.storage_buffer_count = 3,
-			.queue = q,
-			.shader = &apply_gradient_s
+	apply_gradient_s = gsplat::vulkan::compute_shader{
+		gsplat::vulkan::compute_shader_config{
+			.file_name = "/apply_gradient.slang.spv",
+			.shader_dir = shader_dir,
+			.storage_buffer_count = 3
 		}
 	};
 
-	vec = load_entire_file_binary(shader_dir + "/loss_l1.slang.spv");
+	loss_l1_s = gsplat::vulkan::compute_shader{
+		gsplat::vulkan::compute_shader_config{
+			.file_name = "/loss_l1.slang.spv",
+			.shader_dir = shader_dir,
+			.storage_buffer_count = 5
+		}
+	};
 
-	loss_l1_s = gsplat::vulkan::shader{
-		gsplat::vulkan::shader_creation_settings{
-			.file_ptr = vec.data(),
-			.file_size = vec.size(),
-			.device = q->logical_device().get()
-		}
-	};
-	loss_l1_sp = gsplat::vulkan::compute_shader_pipeline{
-		gsplat::vulkan::compute_shader_pipeline_settings{
-			.storage_buffer_count = 5,
-			.queue = q,
-			.shader = &loss_l1_s
-		}
-	};
+	// TODO: redo below to the style above.
 
 	vec = load_entire_file_binary(shader_dir + "/project_gaussians.slang.spv");
 
@@ -146,36 +122,24 @@ shader_store::shader_store(const std::string& shader_dir, gsplat::data::database
 	};
 }
 
-void shader_store::calc_covariance() {
+// TODO: use new buffer object instead:
+
+ coroutine<void> shader_store::calc_covariance(buffer& gaussians, std::size_t gaussian_count) {
 
 	struct settings_t {
 		int buffer_io_size;
 	};
 
-	array_buffer<settings_t> buf{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = 1,
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			calc_covariance_sp.queue()
-		}
-	}};
+	settings_t inst{};
 
-	{
-		auto l = buf.memory_lock();
-		l.data()->buffer_io_size = (int)database_v->gaussian_set().data().size();
+	std::vector<settings_t> vec{};
+	vec.emplace_back(gaussian_count);
 
-	}
-	calc_covariance_sp.bind(0, &(database_v->gaussian_set().buffer1_vulkan()));
-	calc_covariance_sp.bind(1, &buf);
-	calc_covariance_sp.invoke_compute(((int)database_v->gaussian_set().size() + 1023) / 1024, 1, 1);
+	buffer buf = co_await buffer::from_vector(vec);
+
+	calc_covariance_s.bind(0, &gaussians);
+	calc_covariance_s.bind(1, &buf);
+	calc_covariance_s.invoke_compute(((int)database_v->gaussian_set().size() + 1023) / 1024, 1, 1);
 }
 void shader_store::apply_gradient(float learning_rate) {
 

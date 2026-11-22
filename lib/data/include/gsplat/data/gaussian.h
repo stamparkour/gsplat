@@ -3,6 +3,7 @@
 
 #include <gsplat/data/configure.h>
 #include <gsplat/data/gaussian_color.h>
+#include <vector>
 
 namespace gsplat::data {
 	// Vulkan aligned
@@ -29,6 +30,8 @@ namespace gsplat::data {
 		alignas(sizeof(glm::vec2)) glm::mat2 covariance_inv;
 		alignas(sizeof(glm::vec2)) glm::vec2 mean;
 	};
+
+	std::vector<gaussian> gaussian_colmap_txt(const std::string& path_colmap_points3d_txt);
 }
 
 #endif // GSPLAT_DATA_GAUSSIAN_H
