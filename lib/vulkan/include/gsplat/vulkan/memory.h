@@ -467,6 +467,8 @@ namespace gsplat::vulkan {
 			copyRegion.size = size_v;
 			vkCmdCopyBuffer(commandBuffer, buffer_v, b.buffer_v, 1, &copyRegion);
 
+			vkCmdFillBuffer(commandBuffer, b.buffer_v, size_v, new_size-size_v, 0);
+
 			vkEndCommandBuffer(commandBuffer);
 
 			VkSubmitInfo submitInfo{};
@@ -534,6 +536,8 @@ namespace gsplat::vulkan {
 	};
 	class buffer_io_strand : public stamp::task::co_stream_strand {
 	private:
+		bool is_write = false;
+		bool is_started = false;
 		buffer* buffer_v = nullptr;
 		bool eof_v = false;
 		bool fail_v = false;
@@ -547,7 +551,6 @@ namespace gsplat::vulkan {
 		std::size_t buffer_size = 512;
 	public:
 		buffer_io_strand(buffer* target) {
-			// TODO: alloc memory
 			buffer_v = target;
 
 			VkBufferCreateInfo buffer_info{};
@@ -568,6 +571,12 @@ namespace gsplat::vulkan {
 			map_buffer_v = (char*)host_mem_v.map_ptr();
 		}
 		~buffer_io_strand() {
+			if constexpr (stamp::core::is_debug_v) {
+				for (int i = 0; i < buffer_size; i++) {
+					map_buffer_v[i] = 0x1B;
+				}
+			}
+
 			// TODO: release memory
 			if (host_mem_v) {
 				free_gpu_mem(host_mem_v);
@@ -634,6 +643,7 @@ namespace gsplat::vulkan {
 		}
 
 		virtual std::size_t do_try_put_span(const char* span, std::size_t size) {
+			if (!is_started) return 0;
 			eof_v = false;
 			std::ptrdiff_t buf_offset = pos - buffer_pos;
 			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
@@ -649,9 +659,11 @@ namespace gsplat::vulkan {
 			if (pos >= buffer_v->size()) {
 				eof_v = true;
 			}
+			if (length > 0) is_write = true;
 			return length;
 		}
 		virtual std::size_t do_try_get_span(char* span, std::size_t size) {
+			if (!is_started) return 0;
 			eof_v = false;
 			std::ptrdiff_t buf_offset = pos - buffer_pos;
 			if (buf_offset < 0 || buf_offset >= buffer_size) return 0;
@@ -671,23 +683,99 @@ namespace gsplat::vulkan {
 		}
 
 		virtual bool do_await_ready() {
-			if (pos < buffer_pos || pos > buffer_pos + buffer_size) {
-				return false;
-			}
-			return true;
+			return false;
 		}
 		virtual bool do_await_suspend(std::coroutine_handle<> h) {
 			std::size_t aligned_pos = (pos / buffer_size) * buffer_size;
-			// TODO: copy current buffer (make sure to cut off at file end)
-			// then copy new range into strand's buffer.
-			if (aligned_pos == buffer_pos) return false;
 
+			std::size_t size_write = std::min(buffer_size, buffer_v->size() - buffer_pos);
+			std::size_t pos_write = buffer_pos;
+			std::size_t size_read = std::min(buffer_size, buffer_v->size() - aligned_pos);
+			std::size_t pos_read = aligned_pos;
 
+			// send to buffer
+
+			if (is_started && is_write) {
+				is_write = false;
+
+				VkCommandBufferAllocateInfo allocInfo{};
+				allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+				allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+				allocInfo.commandPool = vulkan_context::command_pool();
+				allocInfo.commandBufferCount = 1;
+
+				VkCommandBuffer commandBuffer;
+				vkAllocateCommandBuffers(vulkan_context::device(), &allocInfo, &commandBuffer);
+
+				VkCommandBufferBeginInfo beginInfo{};
+				beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+				vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+				VkBufferCopy copyRegion{};
+				copyRegion.srcOffset = 0; // Optional
+				copyRegion.dstOffset = pos_write; // Optional
+				copyRegion.size = size_write;
+				vkCmdCopyBuffer(commandBuffer, raw_buffer_v, buffer_v->handle(), 1, &copyRegion);
+
+				vkEndCommandBuffer(commandBuffer);
+
+				VkSubmitInfo submitInfo{};
+				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				submitInfo.commandBufferCount = 1;
+				submitInfo.pCommandBuffers = &commandBuffer;
+
+				// TODO: enqueue to wait somewhere else
+				vkQueueSubmit(vulkan_context::queue(), 1, &submitInfo, VK_NULL_HANDLE);
+				vkQueueWaitIdle(vulkan_context::queue());
+
+				vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
+			}
+
+			// recieve from buffer
+
+			{
+				VkCommandBufferAllocateInfo allocInfo{};
+				allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+				allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+				allocInfo.commandPool = vulkan_context::command_pool();
+				allocInfo.commandBufferCount = 1;
+
+				VkCommandBuffer commandBuffer;
+				vkAllocateCommandBuffers(vulkan_context::device(), &allocInfo, &commandBuffer);
+
+				VkCommandBufferBeginInfo beginInfo{};
+				beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+				vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+				VkBufferCopy copyRegion{};
+				copyRegion.srcOffset = pos_read; // Optional
+				copyRegion.dstOffset = 0; // Optional
+				copyRegion.size = size_read;
+				vkCmdCopyBuffer(commandBuffer, buffer_v->handle(), raw_buffer_v, 1, &copyRegion);
+
+				vkEndCommandBuffer(commandBuffer);
+
+				VkSubmitInfo submitInfo{};
+				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				submitInfo.commandBufferCount = 1;
+				submitInfo.pCommandBuffers = &commandBuffer;
+
+				// TODO: enqueue to wait somewhere else
+				vkQueueSubmit(vulkan_context::queue(), 1, &submitInfo, VK_NULL_HANDLE);
+				vkQueueWaitIdle(vulkan_context::queue());
+
+				vkFreeCommandBuffers(vulkan_context::device(), vulkan_context::command_pool(), 1, &commandBuffer);
+			}
 
 			buffer_pos = aligned_pos;
 			return false; // resumes coroutine.
 		}
 		virtual bool do_await_resume() {
+			is_started = true;
 			return good();
 		}
 	public:

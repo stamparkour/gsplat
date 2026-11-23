@@ -15,6 +15,7 @@ coroutine<void> co_main() {
 		{1,2,3,4,5}
 	};
 	buffer b = std::move(co_await buffer::from_vector(vec1));
+	co_await b.resize(sizeof(int) * 10);
 	std::vector<int> vec2 = co_await b.to_vector<int>();
 
 	co_return;
