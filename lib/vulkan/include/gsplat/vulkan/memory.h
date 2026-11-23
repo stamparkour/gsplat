@@ -315,10 +315,10 @@ namespace gsplat::vulkan {
 		}
 	};
 
-	gptr_t alloc_gpu_mem(std::size_t size, std::size_t align, memory_type_t mem_type, uint32_t type_bitmask = 0) {
+	inline gptr_t alloc_gpu_mem(std::size_t size, std::size_t align, memory_type_t mem_type, uint32_t type_bitmask = 0) {
 		return vulkan_memory_manager::global_instance()->alloc(size, align, mem_type, type_bitmask);
 	}
-	void free_gpu_mem(gptr_t p) {
+	inline void free_gpu_mem(gptr_t p) {
 		vulkan_memory_manager::global_instance()->free(p);
 	}
 
@@ -813,7 +813,7 @@ namespace gsplat::vulkan {
 		co_return vec;
 	}
 	template<typename T>
-	inline static stamp::task::coroutine<buffer> buffer::from_vector(const std::vector<T>& vec) {
+	inline stamp::task::coroutine<buffer> buffer::from_vector(const std::vector<T>& vec) {
 		buffer b{vec.size() * sizeof(T), alignof(T)};
 
 		buffer_io_strand strand = b.co_iostream_strand();
