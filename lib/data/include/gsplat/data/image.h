@@ -47,8 +47,10 @@ namespace gsplat::data {
 		image_pose& pose() { return pose_v; }
 		const image_pose& pose() const { return pose_v; }
 
-		void store_vulkan();
-		void fetch_vulkan();
+		// data() to image_vulkan() and back. read_image doesn't upload, train
+		// makes its own target buffers from data()
+		stamp::task::coroutine<void> store_vulkan();
+		stamp::task::coroutine<void> fetch_vulkan();
 		const std::string& name() { return name_v; }
 	};
 }
