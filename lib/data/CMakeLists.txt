@@ -11,7 +11,7 @@ set(PROJECT_SOURCES
 set(PROJECT_HEADERS
 	"include/gsplat/data/configure.h"
 	"include/gsplat/data/gaussian.h"
-	"include/gsplat/data/gaussian_set.h"
+	
 	"include/gsplat/data/gaussian_color.h"
 	"include/gsplat/data/image.h"
 	"include/gsplat/data.h"

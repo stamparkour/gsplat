@@ -6,6 +6,7 @@ to create a buffer:
 using namespace gsplat::vulkan;
 
 buffer my_buffer{12}; // buffer of 12 bytes.
+buffer my_buffer{3 * sizeof(int)}; // buffer of 3 ints.
 ```
 
 to auto convert from/to vector<T>:
@@ -47,6 +48,7 @@ coroutine<void> my_co();
 
 co_await co_guard{my_co()};
 ```
+although the compiler may detect stack allocation anyways. so this is an optional optimization.
 
 implicit start on co_await:
 coroutines dont initially run when first invoked. you must call resume at least once.

@@ -21,7 +21,7 @@ static stamp::task::coroutine<void> make_gaussian_buffers(int n, buffer& gaussia
 	gaussians_2d = buffer{n * sizeof(gaussian2d)};
 	std::vector<int> index(n);
 	std::iota(index.begin(), index.end(), 0);
-	sorted_index = co_await buffer::from_vector(index);
+	sorted_index = std::move(co_await buffer::from_vector(index));
 	raster_grads = buffer{n * 9 * sizeof(float)}; // RASTER_GRAD_STRIDE in splat_math.h
 }
 
@@ -63,7 +63,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 	if (ts.intrinsics.x <= 0 || ts.intrinsics.y <= 0) throw std::runtime_error("train: set train_settings::intrinsics (fx, fy, cx, cy), nothing loads cameras.txt yet");
 	if (ts.images_per_step < 1) throw std::runtime_error("train: images_per_step must be at least 1");
 
-	int n = (int)db->gaussian_set().data().size();
+	int n = (int)db->gaussian_set().size();
 	if (n == 0) throw std::runtime_error("train: no gaussians in the database");
 	const int width = (int)images[0].width();
 	const int height = (int)images[0].height();
@@ -75,14 +75,14 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 
 	// the gaussians stay on the GPU for the whole run. project_backwards adds
 	// into gradients and apply_gradient reads them from there
-	buffer gaussians = co_await buffer::from_vector(db->gaussian_set().data());
+	buffer gaussians = std::move(co_await buffer::from_vector(db->gaussian_set()));
 	buffer gradients{gaussians.size()};
 
 	// the photos go up once
 	std::vector<buffer> targets;
 	targets.reserve(images.size());
 	for (auto& img : images) {
-		targets.push_back(co_await buffer::from_vector(img.data()));
+		targets.push_back(std::move(co_await buffer::from_vector(img.data())));
 	}
 
 	buffer gaussians_2d, sorted_index, raster_grads;
@@ -199,7 +199,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 		}
 	}
 
-	db->gaussian_set().data() = co_await gaussians.to_vector<gaussian>();
+	db->gaussian_set() = co_await gaussians.to_vector<gaussian>();
 }
 
 void my_write_func(void* context, void* data, int size) {

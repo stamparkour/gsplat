@@ -28,12 +28,12 @@ you may edit:
 // https://cppreference.com/ c++ documentation
 
 
-void save_bin(const gaussian_set& set, const std::filesystem::path& path) {
+void save_bin(const std::vector<gaussian>& set, const std::filesystem::path& path) {
 	// use cereal to save the binary.
 	// 'set.data()' is the source storage.
 	// https://uscilab.github.io/cereal/quickstart.html
 }
-void load_bin(gaussian_set& set, const std::filesystem::path& path) {
+void load_bin(std::vector<gaussian>& set, const std::filesystem::path& path) {
 	// use cereal to save the binary.
 	// 'set.data()' is the source storage.
 	// https://uscilab.github.io/cereal/quickstart.html

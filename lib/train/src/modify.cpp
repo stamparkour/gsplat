@@ -51,5 +51,5 @@ stamp::task::coroutine<void> gsplat::train::modify_gaussians(buffer& gaussians, 
 	split_gaussians(g, grad, scene_extent, rng);
 	remove_gaussians(g);
 	if (g.empty()) throw std::runtime_error("modify_gaussians: every gaussian was removed");
-	gaussians = co_await buffer::from_vector(g);
+	gaussians = std::move(co_await buffer::from_vector(g));
 }
