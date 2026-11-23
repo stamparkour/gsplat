@@ -22,7 +22,7 @@ static stamp::task::coroutine<void> make_gaussian_buffers(int n, buffer& gaussia
 	gaussians_2d = buffer{n * sizeof(gaussian2d)};
 	std::vector<int> index(n);
 	std::iota(index.begin(), index.end(), 0);
-	sorted_index = co_await buffer::from_vector(index);
+	sorted_index = std::move(co_await buffer::from_vector(index));
 	raster_grads = buffer{n * 9 * sizeof(float)}; // RASTER_GRAD_STRIDE in splat_math.h
 }
 
@@ -66,7 +66,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 	if (ts.sh_degree < 0 || ts.sh_degree > 3) throw std::runtime_error("train: sh_degree goes from 0 (off) to 3");
 	if (ts.sh_degree > 0 && ts.sh_interval < 1) throw std::runtime_error("train: sh_interval must be at least 1");
 
-	int n = (int)db->gaussian_set().data().size();
+	int n = (int)db->gaussian_set().size();
 	if (n == 0) throw std::runtime_error("train: no gaussians in the database");
 	const int width = (int)images[0].width();
 	const int height = (int)images[0].height();
@@ -78,14 +78,14 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 
 	// the gaussians stay on the GPU for the whole run. project_backwards adds
 	// into gradients and apply_gradient reads them from there
-	buffer gaussians = co_await buffer::from_vector(db->gaussian_set().data());
+	buffer gaussians = std::move(co_await buffer::from_vector(db->gaussian_set()));
 	buffer gradients{gaussians.size()};
 
 	// the photos go up once
 	std::vector<buffer> targets;
 	targets.reserve(images.size());
 	for (auto& img : images) {
-		targets.push_back(co_await buffer::from_vector(img.data()));
+		targets.push_back(std::move(co_await buffer::from_vector(img.data())));
 	}
 
 	buffer gaussians_2d, sorted_index, raster_grads;
@@ -135,8 +135,8 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 	for (int epoch = 0; epoch < ts.epochs; epoch++) {
 		const int sh_deg = sh_degree_at(epoch);
 		if (sh_deg > 0 && sh_degree_at(epoch - 1) == 0) {
-			sh = co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f)); // SH_STRIDE in sh_math.h
-			sh_grads = co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f));
+			sh = std::move(co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f))); // SH_STRIDE in sh_math.h
+			sh_grads = std::move(co_await buffer::from_vector(std::vector<float>(n * 45, 0.0f)));
 			base_rgb = buffer{n * sizeof(glm::vec4)};
 		}
 		if (sh_deg != sh_degree_at(epoch - 1)) {
@@ -229,7 +229,7 @@ stamp::task::coroutine<void> gsplat::train::train(shader_store* shaders, databas
 		}
 	}
 
-	db->gaussian_set().data() = co_await gaussians.to_vector<gaussian>();
+	db->gaussian_set() = co_await gaussians.to_vector<gaussian>();
 }
 
 void my_write_func(void* context, void* data, int size) {

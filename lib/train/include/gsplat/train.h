@@ -35,8 +35,7 @@ namespace gsplat::train {
 	void record_epoch_loss(int epoch, float loss);
 
 	// trains the database's gaussians on the GPU, then writes them back into
-	// db->gaussian_set().data(). only that vector of gaussian_set is used, none
-	// of its buffers. call .resume() once to run it, every buffer call in it
+	// db->gaussian_set(). call .resume() once to run it, every buffer call in it
 	// finishes before returning, so it runs to the end. (stamp::task::wait_for
 	// hangs, its lambda coroutine captures by reference and outlives the lambda.)
 	// ts is taken by value so it lives in the coroutine, not with the caller.

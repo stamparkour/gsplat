@@ -13,7 +13,7 @@ struct camera_intrinsics {
 	float fx, fy, cx, cy;
 };
 
-image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, gsplat::vulkan::command_queue* q, int max_entries) {
+image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, const std::string& images_txt_path, const std::string& cameras_txt_path, int max_entries) {
 	image_set o{};
 
 	std::ifstream file2{cameras_txt_path};
@@ -108,16 +108,15 @@ image_set gsplat::data::image_set::colmap_txt(const std::string& images_dir, con
 		};
 		std::string path{images_dir + "/" + words[9]};
 
-		o.images_v.push_back(image::read_image(path, pose, q));
+		o.images_v.push_back(image::read_image(path, pose));
 		if (o.images_v.size() == max_entries) break;
 	}
 
 	return o;
 }
 
-image gsplat::data::image::read_image(const std::string& path, const image_pose& pose, gsplat::vulkan::command_queue* q) {
+image gsplat::data::image::read_image(const std::string& path, const image_pose& pose) {
 	image o{};
-	o.queue_v = q;
 	o.pose_v = pose;
 
 	int width, height, n;
@@ -146,71 +145,16 @@ image gsplat::data::image::read_image(const std::string& path, const image_pose&
 
 	stbi_image_free(data);
 
-	o.image_v = array_buffer<pixel>{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = o.data_v.size(),
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			o.queue_v,
-		}
-	}};
-
-	o.store_vulkan();
-
 	std::filesystem::path p = path;
 	o.name_v = p.filename().string();
 
 	return o;
 }
 
-void image::store_vulkan() {
-	array_buffer<pixel> buf{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_storage_buffer = true,
-		.size = data_v.size(),
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-
-	{
-		auto l = buf.memory_lock();
-		std::copy(data_v.begin(), data_v.end(), l.begin());
-	}
-
-	image_v.transfer(&buf);
+stamp::task::coroutine<void> image::store_vulkan() {
+	image_v = std::move(co_await buffer::from_vector(data_v));
 }
 
-void image::fetch_vulkan() {
-	array_buffer<pixel> buf{buffer_creation_settings{
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = data_v.size(),
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-
-	buf.transfer(&image_v);
-
-	{
-		auto l = buf.memory_lock();
-		std::copy(l.begin(), l.end(), data_v.begin());
-	}
+stamp::task::coroutine<void> image::fetch_vulkan() {
+	data_v = co_await image_v.to_vector<pixel>();
 }

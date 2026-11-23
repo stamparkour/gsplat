@@ -1,5 +1,4 @@
 #include <gsplat/data/gaussian.h>
-#include <gsplat/data/gaussian_set.h>
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
@@ -8,14 +7,11 @@
 
 using namespace gsplat::data;
 using namespace gsplat::core;
-using namespace gsplat::vulkan;
 
 static float default_scale = 0.02;
 static float default_opacity = 0.1;
-
-gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_txt, gsplat::vulkan::command_queue* q) {
-	gaussian_set o{};
-	o.queue_v = q;
+std::vector<gaussian> gsplat::data::gaussian_colmap_txt(const std::string& path_colmap_points3d_txt) {
+	std::vector<gaussian> o{};
 
 	std::ifstream file{path_colmap_points3d_txt};
 	if (!file) throw std::runtime_error("failed to open colmap points3d file");
@@ -45,83 +41,8 @@ gaussian_set gaussian_set::colmap_txt(const std::string& path_colmap_points3d_tx
 		gaus.scale = {default_scale, default_scale, default_scale, 0};
 		gaus.color.color = {r,g,b, default_opacity};
 
-		o.gaussians_v.push_back(gaus);
+		o.push_back(gaus);
 	}
-
-	o.buffers_v[0] = buffer<gaussian>{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = o.gaussians_v.size(),
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			o.queue_v,
-		}
-	}};
-	o.buffers_v[1] = buffer<gaussian>{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = o.gaussians_v.size(),
-		.memory = {
-			device_memory_settings{}
-		},
-		.queues = {
-			o.queue_v,
-		}
-	}};
-	o.store_vulkan(0);
-	o.store_vulkan(1);
 
 	return o;
-}
-
-void gaussian_set::store_vulkan(int target) {
-	buffer<gaussian> buf{buffer_creation_settings{
-		.usage_transfer_src = true,
-		.usage_storage_buffer = true,
-		.size = gaussians_v.size(),
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-
-	{
-		auto l = buf.memory_lock();
-		std::copy(gaussians_v.begin(), gaussians_v.end(), l.begin());
-	}
-
-	this->buffers_v[(active_buffer + target) % buffer_count].transfer(&buf);
-}
-
-void gaussian_set::fetch_vulkan(int target) {
-	buffer<gaussian> buf{buffer_creation_settings{
-		.usage_transfer_dst = true,
-		.usage_storage_buffer = true,
-		.size = gaussians_v.size(),
-		.memory = {
-			device_memory_settings{
-				.memory_host_visible = true,
-				.memory_host_coherent = true,
-			}
-		},
-		.queues = {
-			queue_v,
-		}
-	}};
-
-	buf.transfer(&this->buffers_v[(active_buffer + target) % buffer_count]);
-
-	{
-		auto l = buf.memory_lock();
-		std::copy(l.begin(), l.end(), gaussians_v.begin());
-	}
 }
