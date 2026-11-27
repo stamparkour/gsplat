@@ -33,7 +33,8 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
     // Define required extensions
     std::vector<const char*> exts = {
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
-        VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+        VK_KHR_SURFACE_EXTENSION_NAME,
     };
     std::vector<const char*> glfw_exts = get_glfw_extensions();
     // Append glfw extensions
@@ -65,7 +66,8 @@ vulkan_context::vulkan_context(const vulkan_context_config& config) {
     };
     // Define required device extensions
     std::vector<const char*> dev_exts = {
-        VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
+        VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
     auto ext_cmp = [](VkExtensionProperties e, const char* v) {
         return std::strcmp(e.extensionName, v) == 0;

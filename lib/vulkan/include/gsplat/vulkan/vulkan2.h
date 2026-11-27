@@ -5,6 +5,7 @@
 #include <gsplat/vulkan/vulkan_include.h>
 #include <stamp/task/coroutine.h>
 #include <cstdint>
+#include <stamp/task/coroutine.h>
 #include <string>
 #include <vector>
 #include <functional>

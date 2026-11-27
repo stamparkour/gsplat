@@ -2,7 +2,7 @@
 #define GSPLAT_DATA_IMAGE_H
 
 #include <gsplat/data/configure.h>
-#include <gsplat/vulkan/buffer.h>
+#include <gsplat/vulkan/memory.h>
 #include <vector>
 #include <cstdint>
 
@@ -29,27 +29,28 @@ namespace gsplat::data {
 		std::vector<pixel> data_v{};
 		std::size_t width_v{};
 		std::size_t height_v{};
-		gsplat::vulkan::array_buffer<pixel> image_v{};
-		gsplat::vulkan::command_queue* queue_v{};
+		gsplat::vulkan::buffer image_v{};
 		image_pose pose_v{};
 		std::string name_v{};
 	public:
 		image() = default;
-		static image read_image(const std::string& path_images, const image_pose& pose, gsplat::vulkan::command_queue*);
+		static image read_image(const std::string& path_images, const image_pose& pose);
 
 		std::size_t width() const { return width_v; }
 		std::size_t height() const { return height_v; }
 		std::size_t size() const { return width_v * height_v; }
 
-		gsplat::vulkan::array_buffer<pixel>& image_vulkan() { return image_v; }
-		const gsplat::vulkan::array_buffer<pixel>& image_vulkan() const { return image_v; }
+		gsplat::vulkan::buffer& image_vulkan() { return image_v; }
+		const gsplat::vulkan::buffer& image_vulkan() const { return image_v; }
 		std::vector<pixel>& data() { return data_v; }
 		const std::vector<pixel>& data() const { return data_v; }
 		image_pose& pose() { return pose_v; }
 		const image_pose& pose() const { return pose_v; }
 
-		void store_vulkan();
-		void fetch_vulkan();
+		// data() to image_vulkan() and back. read_image doesn't upload, train
+		// makes its own target buffers from data()
+		stamp::task::coroutine<void> store_vulkan();
+		stamp::task::coroutine<void> fetch_vulkan();
 		const std::string& name() { return name_v; }
 	};
 }

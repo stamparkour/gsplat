@@ -11,6 +11,8 @@ FetchContent_Declare(
 )
 
 set(SKIP_PERFORMANCE_COMPARISON ON)
+set(BUILD_SANDBOX OFF) # the sandbox fails clang's -Werror, the library itself is header only
+set(BUILD_DOC OFF)
 set(BUILD_SHARED_LIBS OFF)
 FetchContent_MakeAvailable(cereal)
 set(BUILD_SHARED_LIBS ON)

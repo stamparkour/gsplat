@@ -10,7 +10,7 @@ set(PROJECT_HEADERS
 
 # add the executable
 add_executable(gsplat_app ${PROJECT_SOURCES} ${PROJECT_HEADERS})
-target_link_libraries(gsplat_app PUBLIC gsplat::gsplat)
+target_link_libraries(gsplat_app PUBLIC gsplat::vulkan)
 target_compile_features(gsplat_app PUBLIC cxx_std_20)
 
 # include(gtest)
